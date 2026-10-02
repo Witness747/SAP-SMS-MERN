@@ -3,6 +3,7 @@ const http = require('http');
 const { assertJwtSecret } = require('./src/config/env');
 const app = require('./src/app');
 const { connectDB, disconnectDB } = require('./src/config/db');
+const { startReminderScheduler, stopReminderScheduler } = require('./src/services/reminderService');
 
 assertJwtSecret();
 
@@ -15,6 +16,7 @@ const startServer = async () => {
 
   server.listen(PORT, () => {
     console.log('==================================================');
+    startReminderScheduler();
     console.log(`🚀 SAP-SMS Backend Server running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🌐 Base API URL: http://localhost:${PORT}/api`);
@@ -25,6 +27,7 @@ const startServer = async () => {
   // Graceful shutdown handlers
   const gracefulShutdown = async (signal) => {
     console.log(`\n${signal} received. Initiating graceful shutdown...`);
+    await stopReminderScheduler();
     server.close(async () => {
       console.log('HTTP server closed.');
       await disconnectDB();

@@ -1,6 +1,12 @@
 const NotificationPreference = require('../models/NotificationPreference');
 const { sendPushNotification, isPushConfigured } = require('../services/notificationService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { isValidTimeZone } = require('../utils/timezone');
+
+const updatePreferenceTimeZone = (prefs, req) => {
+  const timeZone = req.get('X-Client-Timezone');
+  if (isValidTimeZone(timeZone)) prefs.timeZone = timeZone;
+};
 
 /**
  * @desc    Get user's notification preferences
@@ -13,6 +19,8 @@ const getPreferences = async (req, res, next) => {
     if (!prefs) {
       prefs = await NotificationPreference.create({ user: req.user._id });
     }
+    updatePreferenceTimeZone(prefs, req);
+    if (prefs.isModified('timeZone')) await prefs.save();
 
     return successResponse(res, 200, 'Notification preferences retrieved', {
       preferences: {
@@ -42,6 +50,7 @@ const updatePreferences = async (req, res, next) => {
     if (!prefs) {
       prefs = new NotificationPreference({ user: req.user._id });
     }
+    updatePreferenceTimeZone(prefs, req);
 
     if (taskReminders !== undefined) prefs.taskReminders = Boolean(taskReminders);
     if (eventReminders !== undefined) prefs.eventReminders = Boolean(eventReminders);

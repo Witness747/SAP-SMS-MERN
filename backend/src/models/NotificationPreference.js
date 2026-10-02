@@ -25,6 +25,10 @@ const notificationPreferenceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    timeZone: {
+      type: String,
+      default: null,
+    },
     pushSubscription: {
       endpoint: { type: String, default: null },
       expirationTime: { type: Date, default: null },
