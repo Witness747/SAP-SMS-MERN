@@ -17,6 +17,14 @@ export const notificationService = {
     return await api.post('/notifications/subscribe', { subscription });
   },
 
+  getSubscriptionStatus: async (endpoint) => {
+    return await api.post('/notifications/subscription/status', { endpoint: endpoint || null });
+  },
+
+  unsubscribePush: async (endpoint) => {
+    return await api.delete('/notifications/subscription', { data: { endpoint: endpoint || null } });
+  },
+
   sendTestNotification: async () => {
     return await api.post('/notifications/test');
   },

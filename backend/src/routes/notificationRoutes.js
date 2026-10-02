@@ -4,6 +4,8 @@ const {
   getPreferences,
   updatePreferences,
   subscribePush,
+  getSubscriptionStatus,
+  unsubscribePush,
   getVapidPublicKey,
   sendTestNotification,
 } = require('../controllers/notificationController');
@@ -16,6 +18,8 @@ router.route('/preferences')
   .put(updatePreferences);
 
 router.post('/subscribe', subscribePush);
+router.post('/subscription/status', getSubscriptionStatus);
+router.delete('/subscription', unsubscribePush);
 router.get('/vapid-key', getVapidPublicKey);
 router.post('/test', sendTestNotification);
 

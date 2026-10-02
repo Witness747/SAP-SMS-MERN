@@ -2,7 +2,7 @@ const NotificationPreference = require('../models/NotificationPreference');
 const NotificationDelivery = require('../models/NotificationDelivery');
 const Task = require('../models/Task');
 const Event = require('../models/Event');
-const { sendPushNotification, isPushConfigured } = require('./notificationService');
+const { sendPushNotification, clearPushSubscription, isPushConfigured } = require('./notificationService');
 const { DEFAULT_TIMEZONE, isValidTimeZone } = require('../utils/timezone');
 
 const REMINDER_WINDOWS = [
@@ -62,6 +62,12 @@ const getEventInstant = (event, timeZone) => {
   return zonedLocalDateToUtc(parts.year, parts.month, parts.day, hour, minute, timeZone);
 };
 
+const getReminderTimeZone = (prefs) => {
+  if (isValidTimeZone(prefs.timeZone)) return prefs.timeZone;
+  if (isValidTimeZone(process.env.APP_TIMEZONE)) return process.env.APP_TIMEZONE;
+  return DEFAULT_TIMEZONE;
+};
+
 const claimDelivery = async (reminder) => {
   const identity = {
     user: reminder.user,
@@ -100,10 +106,13 @@ const deliverReminder = async (reminder) => {
     data: { sourceType: reminder.sourceType, sourceId: String(reminder.sourceId) },
   };
 
-  const sent = await sendPushNotification(reminder.subscription, payload);
-  if (!sent) {
+  const delivery = await sendPushNotification(reminder.subscription, payload);
+  if (delivery.status !== 'sent_to_push_service') {
     await NotificationDelivery.deleteOne(identity);
-    console.error(`[reminders] delivery failed: ${reminder.sourceType} ${reminder.sourceId} user ${reminder.user} (${reminder.window.key})`);
+    if (delivery.status === 'stale_subscription') {
+      await clearPushSubscription(reminder.user, reminder.subscription.endpoint);
+    }
+    console.error(`[reminders] delivery failed (${delivery.status}${delivery.statusCode ? ` ${delivery.statusCode}` : ''}): ${reminder.sourceType} ${reminder.sourceId} user ${reminder.user} (${reminder.window.key})`);
     return false;
   }
 
@@ -134,13 +143,13 @@ const processDueReminders = async ({ now = new Date() } = {}) => {
     for (const prefs of preferences) {
       if (prefs.taskReminders !== false) {
         const tasks = await Task.find({ user: prefs.user, status: { $ne: 'completed' } }).lean();
-        for (const task of tasks) candidates.push({ sourceType: 'task', sourceId: task._id, user: prefs.user, source: task, dueAt: getTaskDueInstant(task, isValidTimeZone(prefs.timeZone) ? prefs.timeZone : DEFAULT_TIMEZONE), subscription: prefs.pushSubscription });
+        for (const task of tasks) candidates.push({ sourceType: 'task', sourceId: task._id, user: prefs.user, source: task, dueAt: getTaskDueInstant(task, getReminderTimeZone(prefs)), subscription: prefs.pushSubscription });
       } else {
         console.log(`[reminders] task reminders disabled for user ${prefs.user}`);
       }
       if (prefs.eventReminders !== false) {
         const events = await Event.find({ user: prefs.user }).lean();
-        for (const event of events) candidates.push({ sourceType: 'event', sourceId: event._id, user: prefs.user, source: event, dueAt: getEventInstant(event, isValidTimeZone(prefs.timeZone) ? prefs.timeZone : DEFAULT_TIMEZONE), subscription: prefs.pushSubscription });
+        for (const event of events) candidates.push({ sourceType: 'event', sourceId: event._id, user: prefs.user, source: event, dueAt: getEventInstant(event, getReminderTimeZone(prefs)), subscription: prefs.pushSubscription });
       } else {
         console.log(`[reminders] event reminders disabled for user ${prefs.user}`);
       }

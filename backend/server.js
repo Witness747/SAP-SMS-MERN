@@ -19,8 +19,8 @@ const startServer = async () => {
     startReminderScheduler();
     console.log(`🚀 SAP-SMS Backend Server running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🌐 Base API URL: http://localhost:${PORT}/api`);
-    console.log(`🩺 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`🌐 API listening on port ${PORT} at /api`);
+    console.log('🩺 Health Check: /api/health');
     console.log('==================================================');
   });
 

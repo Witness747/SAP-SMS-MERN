@@ -1,7 +1,8 @@
 const NotificationPreference = require('../models/NotificationPreference');
-const { sendPushNotification, isPushConfigured } = require('../services/notificationService');
+const { sendPushNotification, clearPushSubscription, isPushConfigured } = require('../services/notificationService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { isValidTimeZone } = require('../utils/timezone');
+const { validatePushSubscription } = require('../validators');
 
 const updatePreferenceTimeZone = (prefs, req) => {
   const timeZone = req.get('X-Client-Timezone');
@@ -28,7 +29,7 @@ const getPreferences = async (req, res, next) => {
         eventReminders: prefs.eventReminders,
         attendanceWarnings: prefs.attendanceWarnings,
         timetableReminders: prefs.timetableReminders,
-        isPushSubscribed: Boolean(prefs.pushSubscription && prefs.pushSubscription.endpoint),
+        hasStoredPushSubscription: Boolean(prefs.pushSubscription && prefs.pushSubscription.endpoint),
       },
       pushConfiguredOnServer: isPushConfigured(),
     });
@@ -65,7 +66,7 @@ const updatePreferences = async (req, res, next) => {
         eventReminders: prefs.eventReminders,
         attendanceWarnings: prefs.attendanceWarnings,
         timetableReminders: prefs.timetableReminders,
-        isPushSubscribed: Boolean(prefs.pushSubscription && prefs.pushSubscription.endpoint),
+        hasStoredPushSubscription: Boolean(prefs.pushSubscription && prefs.pushSubscription.endpoint),
       },
     });
   } catch (error) {
@@ -80,9 +81,18 @@ const updatePreferences = async (req, res, next) => {
  */
 const subscribePush = async (req, res, next) => {
   try {
-    const { subscription } = req.body;
-    if (!subscription || !subscription.endpoint) {
-      return errorResponse(res, 400, 'Invalid subscription object');
+    const subscription = req.body?.subscription;
+    const validationErrors = validatePushSubscription(subscription);
+    if (validationErrors.length) {
+      return errorResponse(res, 400, 'Invalid push subscription', validationErrors);
+    }
+
+    const endpointOwner = await NotificationPreference.findOne({
+      user: { $ne: req.user._id },
+      'pushSubscription.endpoint': subscription.endpoint,
+    }).select('user');
+    if (endpointOwner) {
+      return errorResponse(res, 409, 'This browser subscription is already registered to another account. Unsubscribe from that account first.');
     }
 
     let prefs = await NotificationPreference.findOne({ user: req.user._id });
@@ -90,10 +100,70 @@ const subscribePush = async (req, res, next) => {
       prefs = new NotificationPreference({ user: req.user._id });
     }
 
-    prefs.pushSubscription = subscription;
+    prefs.pushSubscription = {
+      endpoint: subscription.endpoint,
+      expirationTime: subscription.expirationTime == null ? null : new Date(subscription.expirationTime),
+      keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
+    };
     await prefs.save();
 
-    return successResponse(res, 200, 'Web push subscription saved successfully');
+    return successResponse(res, 200, 'Web push subscription saved successfully', { registered: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Report whether the current browser endpoint is registered to this account. */
+const getSubscriptionStatus = async (req, res, next) => {
+  try {
+    const endpoint = req.body?.endpoint;
+    if (endpoint !== undefined && endpoint !== null && endpoint !== '') {
+      let parsed;
+      try { parsed = new URL(endpoint); } catch { parsed = null; }
+      if (typeof endpoint !== 'string' || !parsed || parsed.protocol !== 'https:' || !parsed.hostname) {
+        return errorResponse(res, 400, 'Browser subscription endpoint must be a valid HTTPS URL');
+      }
+    }
+    const prefs = await NotificationPreference.findOne({ user: req.user._id }).select('pushSubscription.endpoint');
+    const storedEndpoint = prefs?.pushSubscription?.endpoint || null;
+    return successResponse(res, 200, 'Push subscription status retrieved', {
+      browserSubscribed: Boolean(endpoint),
+      serverHasSubscription: Boolean(storedEndpoint),
+      serverRegisteredForBrowser: Boolean(endpoint && storedEndpoint === endpoint),
+      pushConfigured: isPushConfigured(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Remove only the authenticated user's server-side subscription. */
+const unsubscribePush = async (req, res, next) => {
+  try {
+    const endpoint = req.body?.endpoint;
+    if (endpoint !== undefined && endpoint !== null && endpoint !== '') {
+      let parsed;
+      try { parsed = new URL(endpoint); } catch { parsed = null; }
+      if (typeof endpoint !== 'string' || !parsed || parsed.protocol !== 'https:' || !parsed.hostname) {
+        return errorResponse(res, 400, 'Browser subscription endpoint must be a valid HTTPS URL');
+      }
+    }
+    const query = { user: req.user._id };
+    if (endpoint) query['pushSubscription.endpoint'] = endpoint;
+    const prefs = await NotificationPreference.findOne(query);
+    const browserWasRegistered = Boolean(endpoint && prefs?.pushSubscription?.endpoint === endpoint);
+    if (prefs) {
+      prefs.pushSubscription = {
+        endpoint: null,
+        expirationTime: null,
+        keys: { p256dh: null, auth: null },
+      };
+      await prefs.save();
+    }
+    return successResponse(res, 200, 'Push subscription removed from this account', {
+      removed: Boolean(prefs),
+      browserWasRegistered,
+    });
   } catch (error) {
     next(error);
   }
@@ -105,10 +175,10 @@ const subscribePush = async (req, res, next) => {
  * @access  Private
  */
 const getVapidPublicKey = async (req, res) => {
-  const publicKey = process.env.VAPID_PUBLIC_KEY || '';
+  const publicKey = isPushConfigured() ? process.env.VAPID_PUBLIC_KEY : '';
   return successResponse(res, 200, 'VAPID Public Key', {
-    publicKey,
-    configured: Boolean(publicKey),
+    publicKey: publicKey || '',
+    configured: isPushConfigured(),
   });
 };
 
@@ -122,10 +192,14 @@ const sendTestNotification = async (req, res, next) => {
     const prefs = await NotificationPreference.findOne({ user: req.user._id });
 
     if (!prefs || !prefs.pushSubscription || !prefs.pushSubscription.endpoint) {
-      return successResponse(res, 200, 'In-app notification simulated (Browser push subscription is not active).', {
-        type: 'simulated',
-        title: 'SAP-SMS Test Alert',
-        body: 'This is a test notification. Enable browser push permission to receive system notifications.',
+      return successResponse(res, 200, 'No push subscription is registered for this account.', {
+        status: 'no_subscription',
+      });
+    }
+
+    if (!isPushConfigured()) {
+      return successResponse(res, 200, 'Web Push is unavailable because VAPID keys are not configured.', {
+        status: 'vapid_unavailable',
       });
     }
 
@@ -135,15 +209,23 @@ const sendTestNotification = async (req, res, next) => {
       url: '/dashboard',
     };
 
-    const sent = await sendPushNotification(prefs.pushSubscription, payload);
-
-    if (sent) {
-      return successResponse(res, 200, 'Test push notification sent successfully!', { type: 'push' });
+    const delivery = await sendPushNotification(prefs.pushSubscription, payload);
+    if (delivery.status === 'stale_subscription') {
+      await clearPushSubscription(req.user._id, prefs.pushSubscription.endpoint);
     } else {
-      return successResponse(res, 200, 'Push server not configured with active VAPID keys; client in-app notification test succeeded.', {
-        type: 'simulated',
-      });
+      if (delivery.status === 'sent_to_push_service') {
+        return successResponse(res, 200, 'Push service accepted the test notification. Browser display is not confirmed.', {
+          status: 'sent_to_push_service',
+        });
+      }
     }
+    const message = delivery.status === 'stale_subscription'
+      ? 'The push service confirmed this subscription is gone; it was removed from this account.'
+      : 'Push delivery failed. The subscription was retained.';
+    return successResponse(res, 200, message, {
+      status: delivery.status,
+      statusCode: delivery.statusCode,
+    });
   } catch (error) {
     next(error);
   }
@@ -153,6 +235,8 @@ module.exports = {
   getPreferences,
   updatePreferences,
   subscribePush,
+  getSubscriptionStatus,
+  unsubscribePush,
   getVapidPublicKey,
   sendTestNotification,
 };

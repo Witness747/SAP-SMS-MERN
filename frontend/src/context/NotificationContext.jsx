@@ -10,6 +10,39 @@ export const NotificationProvider = ({ children }) => {
     return 'Notification' in window ? Notification.permission : 'unsupported';
   });
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isUnsubscribing, setIsUnsubscribing] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState({
+    supported: 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+    serviceWorkerRegistered: false,
+    browserSubscribed: false,
+    serverHasSubscription: false,
+    serverRegisteredForBrowser: false,
+    pushConfigured: false,
+  });
+
+  const refreshSubscriptionStatus = async () => {
+    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const currentPermission = 'Notification' in window ? Notification.permission : 'unsupported';
+    setPermission(currentPermission);
+    if (!supported) {
+      const status = { supported, serviceWorkerRegistered: false, browserSubscribed: false, serverHasSubscription: false, serverRegisteredForBrowser: false, pushConfigured: false };
+      setSubscriptionStatus(status);
+      return status;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = registration ? await registration.pushManager.getSubscription() : null;
+      const response = await notificationService.getSubscriptionStatus(subscription?.endpoint || null);
+      const status = { supported, serviceWorkerRegistered: Boolean(registration), ...response.data };
+      setSubscriptionStatus(status);
+      return status;
+    } catch (error) {
+      const status = { ...subscriptionStatus, supported, statusError: error.message };
+      setSubscriptionStatus(status);
+      return status;
+    }
+  };
 
   // Add toast helper
   const showToast = (message, type = 'info', duration = 4000) => {
@@ -29,14 +62,20 @@ export const NotificationProvider = ({ children }) => {
 
   // Request browser Web Push permissions
   const subscribeToPush = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       showToast('Push notifications are not supported on this browser/device.', 'warning');
       return false;
     }
 
     try {
       setIsSubscribing(true);
-      const perm = await Notification.requestPermission();
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        showToast('The service worker is not registered. Open the production build over HTTPS or localhost.', 'warning');
+        setIsSubscribing(false);
+        return false;
+      }
+      const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
       setPermission(perm);
 
       if (perm !== 'granted') {
@@ -49,13 +88,13 @@ export const NotificationProvider = ({ children }) => {
       const res = await notificationService.getVapidKey();
       const vapidKey = res?.data?.publicKey;
 
-      if (!vapidKey) {
-        showToast('Browser notifications enabled for in-app alerts (VAPID key not configured on server).', 'info');
+      if (!res?.data?.configured || !vapidKey) {
+        showToast('Push is unavailable because VAPID keys are not configured on the server.', 'warning');
         setIsSubscribing(false);
-        return true;
+        await refreshSubscriptionStatus();
+        return false;
       }
 
-      const registration = await navigator.serviceWorker.ready;
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
@@ -68,14 +107,45 @@ export const NotificationProvider = ({ children }) => {
 
       // Save subscription to backend
       await notificationService.subscribePush(subscription);
+      await refreshSubscriptionStatus();
       showToast('Successfully subscribed to academic notifications! 🔔', 'success');
       setIsSubscribing(false);
       return true;
     } catch (error) {
       console.error('Push subscription failed:', error);
       showToast(`Push subscription error: ${error.message}`, 'error');
+      await refreshSubscriptionStatus();
       setIsSubscribing(false);
       return false;
+    }
+  };
+
+  const unsubscribeFromPush = async () => {
+    setIsUnsubscribing(true);
+    try {
+      const status = await refreshSubscriptionStatus();
+      if (status.statusError) throw new Error(status.statusError);
+      let subscription = null;
+      let endpointToRemove = null;
+      if (status.serverRegisteredForBrowser && 'serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        subscription = registration ? await registration.pushManager.getSubscription() : null;
+        endpointToRemove = subscription?.endpoint || null;
+      }
+      try {
+        await notificationService.unsubscribePush(endpointToRemove);
+      } finally {
+        if (status.serverRegisteredForBrowser && subscription) await subscription.unsubscribe();
+      }
+      await refreshSubscriptionStatus();
+      showToast('Push notifications disabled for this browser and account.', 'success');
+      return true;
+    } catch (error) {
+      showToast(`Could not fully unsubscribe: ${error.message}`, 'error');
+      await refreshSubscriptionStatus();
+      return false;
+    } finally {
+      setIsUnsubscribing(false);
     }
   };
 
@@ -87,7 +157,11 @@ export const NotificationProvider = ({ children }) => {
         removeToast,
         permission,
         isSubscribing,
+        isUnsubscribing,
+        subscriptionStatus,
+        refreshSubscriptionStatus,
         subscribeToPush,
+        unsubscribeFromPush,
       }}
     >
       {children}

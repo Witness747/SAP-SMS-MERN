@@ -32,12 +32,11 @@ const initWebPush = () => {
  * Send push notification to a client subscription
  * @param {object} subscription - Web push subscription object
  * @param {object} payload - Notification data { title, body, icon, url, data }
- * @returns {Promise<boolean>} Success status
+ * @returns {Promise<{status: string, statusCode?: number}>} Delivery outcome
  */
 const sendPushNotification = async (subscription, payload) => {
-  if (!isPushConfigured || !subscription || !subscription.endpoint) {
-    return false;
-  }
+  if (!isPushConfigured) return { status: 'vapid_unavailable' };
+  if (!subscription || !subscription.endpoint) return { status: 'no_subscription' };
 
   try {
     const stringifiedPayload = JSON.stringify({
@@ -52,15 +51,36 @@ const sendPushNotification = async (subscription, payload) => {
     });
 
     await webpush.sendNotification(subscription, stringifiedPayload);
-    return true;
+    return { status: 'sent_to_push_service' };
   } catch (error) {
-    console.error(`Failed to send web push notification: ${error.message}`);
-    return false;
+    const statusCode = Number(error.statusCode) || undefined;
+    let status = 'delivery_failed';
+    if (statusCode === 404 || statusCode === 410) status = 'stale_subscription';
+    else if (statusCode === 401 || statusCode === 403) status = 'push_service_auth_failed';
+    else if (!statusCode || statusCode === 408 || statusCode === 429 || statusCode >= 500) status = 'transient_failure';
+    console.error(`Failed to send web push notification (${statusCode || error.code || error.name || 'unknown'}).`);
+    return { status, statusCode, code: error.code || undefined };
   }
+};
+
+const clearPushSubscription = async (userId, endpoint) => {
+  const NotificationPreference = require('../models/NotificationPreference');
+  return NotificationPreference.updateOne(
+    { user: userId, 'pushSubscription.endpoint': endpoint },
+    {
+      $set: {
+        'pushSubscription.endpoint': null,
+        'pushSubscription.expirationTime': null,
+        'pushSubscription.keys.p256dh': null,
+        'pushSubscription.keys.auth': null,
+      },
+    }
+  );
 };
 
 module.exports = {
   initWebPush,
   sendPushNotification,
+  clearPushSubscription,
   isPushConfigured: () => isPushConfigured,
 };

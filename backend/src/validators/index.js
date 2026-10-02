@@ -138,6 +138,45 @@ const validateEvent = (data, { isUpdate = false } = {}) => {
   return errors;
 };
 
+const validatePushSubscription = (subscription) => {
+  const errors = [];
+  if (!subscription || typeof subscription !== 'object' || Array.isArray(subscription)) {
+    return ['Subscription must be an object'];
+  }
+
+  if (typeof subscription.endpoint !== 'string' || subscription.endpoint.length > 2048) {
+    errors.push('Subscription endpoint must be a valid HTTPS URL');
+  } else {
+    try {
+      const endpoint = new URL(subscription.endpoint);
+      if (endpoint.protocol !== 'https:' || !endpoint.hostname || endpoint.username || endpoint.password) {
+        errors.push('Subscription endpoint must be a valid HTTPS URL');
+      }
+    } catch {
+      errors.push('Subscription endpoint must be a valid HTTPS URL');
+    }
+  }
+
+  const keys = subscription.keys;
+  if (!keys || typeof keys !== 'object' || Array.isArray(keys)) {
+    errors.push('Subscription keys are required');
+    return errors;
+  }
+
+  const isBase64Url = (value) => typeof value === 'string' && value.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value);
+  if (!isBase64Url(keys.p256dh) || Buffer.from(keys.p256dh, 'base64url').length !== 65) {
+    errors.push('Subscription keys.p256dh must be a valid 65-byte base64url key');
+  }
+  if (!isBase64Url(keys.auth) || Buffer.from(keys.auth, 'base64url').length !== 16) {
+    errors.push('Subscription keys.auth must be a valid 16-byte base64url key');
+  }
+  if (subscription.expirationTime !== undefined && subscription.expirationTime !== null &&
+      (typeof subscription.expirationTime !== 'number' || !Number.isFinite(subscription.expirationTime) || subscription.expirationTime < 0 || subscription.expirationTime > 8640000000000000)) {
+    errors.push('Subscription expirationTime must be a non-negative number or null');
+  }
+  return errors;
+};
+
 const validateAttendance = (data, { isUpdate = false } = {}) => {
   const errors = [];
 
@@ -201,6 +240,7 @@ module.exports = {
   validateSubject,
   validateTask,
   validateEvent,
+  validatePushSubscription,
   validateAttendance,
   validateTimetable,
   validateTimeRange,

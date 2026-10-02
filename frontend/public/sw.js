@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sap-sms-cache-v1';
+const CACHE_NAME = 'sap-sms-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -75,37 +75,51 @@ self.addEventListener('fetch', (event) => {
 
 // Push Notification Event Listener
 self.addEventListener('push', (event) => {
-  let data = {
+  const fallback = {
     title: 'SAP-SMS Alert',
     body: 'You have a new academic update.',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     data: { url: '/dashboard' },
   };
+  let payload = {};
 
   try {
-    if (event.data) {
-      data = event.data.json();
-    }
-  } catch (e) {
-    if (event.data) {
-      data.body = event.data.text();
-    }
+    if (event.data) payload = event.data.json();
+  } catch {
+    if (event.data) payload = { body: event.data.text() };
   }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) payload = {};
+  const data = {
+    title: typeof payload.title === 'string' && payload.title.trim() ? payload.title.slice(0, 120) : fallback.title,
+    body: typeof payload.body === 'string' ? payload.body.slice(0, 500) : fallback.body,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    data: payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : fallback.data,
+  };
+  const sourceType = ['task', 'event'].includes(data.data.sourceType) ? data.data.sourceType : 'notice';
+  const sourceId = typeof data.data.sourceId === 'string' ? data.data.sourceId.slice(0, 100) : 'test';
 
   const options = {
     body: data.body,
     icon: data.icon || '/icons/icon-192x192.png',
     badge: data.badge || '/icons/icon-192x192.png',
     vibrate: [100, 50, 100],
-    data: data.data || { url: '/' },
+    data: { url: data.data.url, sourceType, sourceId },
+    tag: `sap-sms-${sourceType}-${sourceId}`,
+    renotify: false,
     actions: [
       { action: 'open', title: 'Open Planner' },
       { action: 'dismiss', title: 'Dismiss' },
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title, options).catch((error) => {
+      console.error('Unable to display push notification:', error);
+    })
+  );
 });
 
 // Notification Click Event Listener
@@ -116,12 +130,24 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const requestedPath = event.notification.data && event.notification.data.url;
+  let targetUrl = '/dashboard';
+  try {
+    if (typeof requestedPath === 'string' && requestedPath.startsWith('/') && !requestedPath.startsWith('//')) {
+      const candidate = new URL(requestedPath, self.location.origin);
+      const allowedPath = /^\/(dashboard|tasks|subjects|attendance|timetable|events|settings|profile)?\/?$/.test(candidate.pathname);
+      if (candidate.origin === self.location.origin && allowedPath) {
+        targetUrl = `${candidate.pathname}${candidate.search}${candidate.hash}`;
+      }
+    }
+  } catch {
+    targetUrl = '/dashboard';
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if (new URL(client.url).origin === self.location.origin && new URL(client.url).pathname === new URL(targetUrl, self.location.origin).pathname && 'focus' in client) {
           return client.focus();
         }
       }

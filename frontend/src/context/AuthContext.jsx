@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { authService } from '../services/authService';
+import { notificationService } from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -57,6 +58,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    let browserSubscription = null;
+    let registeredToCurrentAccount = false;
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        browserSubscription = registration ? await registration.pushManager.getSubscription() : null;
+      }
+      const status = await notificationService.getSubscriptionStatus(browserSubscription?.endpoint || null);
+      registeredToCurrentAccount = Boolean(status.data?.serverRegisteredForBrowser);
+    } catch (error) {
+      console.warn('Could not verify the push subscription during logout:', error.message);
+    }
+    if (registeredToCurrentAccount && browserSubscription) {
+      try {
+        await notificationService.unsubscribePush(browserSubscription.endpoint);
+      } catch (error) {
+        console.warn('Could not remove the server push subscription during logout:', error.message);
+      }
+      try {
+        await browserSubscription.unsubscribe();
+      } catch (error) {
+        console.warn('Could not remove the browser push subscription during logout:', error.message);
+      }
+    }
     await authService.logout();
     setToken(null);
     setUser(null);

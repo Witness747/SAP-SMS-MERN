@@ -259,4 +259,6 @@ All API endpoints reside under the `/api` root path. Authenticated routes requir
 - `PUT /api/notifications/preferences`: Update reminder flags.
 - `GET /api/notifications/vapid-key`: Retrieve public key for PushManager.
 - `POST /api/notifications/subscribe`: Store browser PushSubscription JSON.
-- `POST /api/notifications/test`: Trigger test notification.
+- `POST /api/notifications/subscription/status`: Compare the browser's current endpoint with the authenticated account's stored subscription. Body: `{ "endpoint": "https://..." }` or `{ "endpoint": null }`.
+- `DELETE /api/notifications/subscription`: Remove the authenticated account's subscription. Optional body endpoint scopes removal to that exact browser subscription.
+- `POST /api/notifications/test`: Request a test push. `data.status` distinguishes `sent_to_push_service`, `no_subscription`, `vapid_unavailable`, `stale_subscription`, `push_service_auth_failed`, `transient_failure`, and `delivery_failed`. A successful status means the push service accepted the send; it does not confirm that the browser displayed it.

@@ -11,7 +11,6 @@ import {
   Moon,
   Send,
   Info,
-  CheckCircle2,
   ShieldCheck,
   Server,
   Layers,
@@ -24,12 +23,14 @@ const Settings = () => {
     attendanceWarnings: true,
     timetableReminders: true,
   });
-  const [isPushConfigured, setIsPushConfigured] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   const { theme, setTheme } = useTheme();
-  const { permission, subscribeToPush, isSubscribing, showToast } = useNotifications();
+  const {
+    permission, subscribeToPush, unsubscribeFromPush, isSubscribing,
+    isUnsubscribing, subscriptionStatus, refreshSubscriptionStatus, showToast,
+  } = useNotifications();
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -38,7 +39,7 @@ const Settings = () => {
         if (res.data?.preferences) {
           setPreferences(res.data.preferences);
         }
-        setIsPushConfigured(Boolean(res.data?.pushConfiguredOnServer));
+        await refreshSubscriptionStatus();
       } catch (err) {
         console.warn('Failed to load preferences:', err.message);
       }
@@ -65,7 +66,20 @@ const Settings = () => {
     try {
       setIsTesting(true);
       const res = await notificationService.sendTestNotification();
-      showToast(res.message || 'Test notification triggered!', 'success');
+      const status = res.data?.status;
+      if (status === 'sent_to_push_service') {
+        showToast('Push service accepted the notification. Browser display is not confirmed.', 'success');
+      } else {
+        const messages = {
+          no_subscription: 'This browser is not registered for this account.',
+          vapid_unavailable: 'Push is unavailable because server VAPID keys are not configured.',
+          stale_subscription: 'The push service reports this subscription is expired. Subscribe again.',
+          push_service_auth_failed: 'The push service rejected the server credentials. Check the VAPID configuration.',
+          transient_failure: 'The push service is temporarily unavailable. Try again later.',
+          delivery_failed: `Push delivery failed${res.data?.statusCode ? ` (${res.data.statusCode})` : ''}.`,
+        };
+        showToast(messages[status] || res.message || 'Push delivery failed.', 'error');
+      }
     } catch (err) {
       showToast(err.message || 'Failed to trigger test notification', 'error');
     } finally {
@@ -92,10 +106,12 @@ const Settings = () => {
           subtitle="Control in-app alerts and browser notifications"
           action={
             <Badge
-              variant={permission === 'granted' ? 'success' : 'default'}
+              variant={subscriptionStatus.serverRegisteredForBrowser ? 'success' : 'default'}
               size="sm"
             >
-              {permission === 'granted' ? 'Permission Granted' : 'Permission Not Enabled'}
+              {subscriptionStatus.serverRegisteredForBrowser
+                ? 'Push Registered'
+                : permission === 'granted' ? 'Permission Granted' : 'Permission Not Enabled'}
             </Badge>
           }
         />
@@ -160,21 +176,35 @@ const Settings = () => {
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
-              {permission !== 'granted' ? (
+              {subscriptionStatus.serverHasSubscription ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={unsubscribeFromPush}
+                  isLoading={isUnsubscribing}
+                >
+                  {subscriptionStatus.serverRegisteredForBrowser ? 'Unsubscribe this browser' : 'Clear stale account registration'}
+                </Button>
+              ) : !subscriptionStatus.supported ? (
+                <span className="text-xs text-amber-600 dark:text-amber-400">Push notifications are unsupported in this browser.</span>
+              ) : !subscriptionStatus.serviceWorkerRegistered ? (
+                <span className="text-xs text-amber-600 dark:text-amber-400">Service worker is not registered for this site.</span>
+              ) : !subscriptionStatus.pushConfigured ? (
+                <span className="text-xs text-amber-600 dark:text-amber-400">Server VAPID keys are unavailable; browser push cannot be registered.</span>
+              ) : (
                 <Button
                   size="sm"
                   onClick={subscribeToPush}
                   isLoading={isSubscribing}
                   leftIcon={Bell}
                 >
-                  Enable Browser Push Notifications
+                  {permission === 'granted' ? 'Register This Browser' : 'Enable Browser Push Notifications'}
                 </Button>
-              ) : (
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Browser Push Permission Active</span>
-                </div>
               )}
+
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Permission: {permission} · Browser subscription: {subscriptionStatus.browserSubscribed ? 'present' : 'none'} · Server registration: {subscriptionStatus.serverRegisteredForBrowser ? 'current' : subscriptionStatus.serverHasSubscription ? 'different or stale' : 'none'}
+              </span>
 
               <Button
                 variant="outline"

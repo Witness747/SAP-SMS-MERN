@@ -40,7 +40,7 @@
   - Intercepts `401 Unauthorized` responses to expire local tokens and route to `/login?session=expired`.
 - **Progressive Web App (PWA)**:
   - `manifest.webmanifest`: Dictates standalone display mode, orientation, branding colors, and icon specifications.
-  - `sw.js` (Service Worker): Caches static assets for offline shells and handles push notification click-throughs.
+  - `sw.js` (Service Worker): Caches same-origin shell/assets with a limited navigation fallback and handles push notifications. API data and offline sync are not available offline.
 
 ### B. Application Server Tier (Backend)
 - **Runtime**: **Node.js** (LTS v18+).

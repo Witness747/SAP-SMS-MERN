@@ -43,6 +43,15 @@ const notificationPreferenceSchema = new mongoose.Schema(
   }
 );
 
+// One browser endpoint may be registered to only one account at a time.
+notificationPreferenceSchema.index(
+  { 'pushSubscription.endpoint': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 'pushSubscription.endpoint': { $type: 'string' } },
+  }
+);
+
 const NotificationPreference = mongoose.model('NotificationPreference', notificationPreferenceSchema);
 
 module.exports = NotificationPreference;
