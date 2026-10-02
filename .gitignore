@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production build artifacts
+dist/
+build/
+*/dist/
+*/build/
+
+# Environment files and credentials (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary / Cache
+.eslintcache
+.stylelintcache
+.cache/
+.vite/
