@@ -4,6 +4,7 @@ const Task = require('../models/Task');
 const Timetable = require('../models/Timetable');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { validateSubject } = require('../validators');
+const { parsePagination, createPaginationMeta } = require('../utils/sanitize');
 
 /**
  * @desc    Get all subjects for the logged-in student
@@ -12,10 +13,22 @@ const { validateSubject } = require('../validators');
  */
 const getSubjects = async (req, res, next) => {
   try {
-    const subjects = await Subject.find({ user: req.user._id }).sort({ name: 1 });
+    const pagination = parsePagination(req.query);
+    if (pagination.errors) return errorResponse(res, 400, 'Invalid pagination parameters', pagination.errors);
+    const userQuery = { user: req.user._id };
+    const [subjects, totalItems] = await Promise.all([
+      Subject.find(userQuery)
+        .sort({ name: 1, _id: 1 })
+        .skip(pagination.skip)
+        .limit(pagination.pageSize),
+      Subject.countDocuments(userQuery),
+    ]);
+    const attendanceRecords = await Attendance.find({
+      ...userQuery,
+      subject: { $in: subjects.map((subject) => subject._id) },
+    });
 
     // Fetch corresponding attendance records for quick summary display
-    const attendanceRecords = await Attendance.find({ user: req.user._id });
     const attendanceMap = {};
     attendanceRecords.forEach((att) => {
       attendanceMap[att.subject.toString()] = {
@@ -36,7 +49,10 @@ const getSubjects = async (req, res, next) => {
       },
     }));
 
-    return successResponse(res, 200, 'Subjects fetched successfully', subjectsWithAttendance);
+    return successResponse(res, 200, 'Subjects fetched successfully', subjectsWithAttendance, {
+      count: subjects.length,
+      pagination: createPaginationMeta(totalItems, pagination.page, pagination.pageSize),
+    });
   } catch (error) {
     next(error);
   }

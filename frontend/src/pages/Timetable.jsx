@@ -9,6 +9,7 @@ import EmptyState from '../components/common/EmptyState';
 import { TableSkeleton } from '../components/common/Skeleton';
 import TimetableModal from '../components/timetable/TimetableModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import Pagination from '../components/common/Pagination';
 import {
   CalendarDays,
   Plus,
@@ -19,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { formatTime } from '../utils/formatters';
+import { deleteAndRefreshPage } from '../utils/pagination';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -26,6 +28,8 @@ const Timetable = () => {
   const [entries, setEntries] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Current day determination
   const todayName = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
@@ -39,17 +43,20 @@ const Timetable = () => {
 
   const { showToast } = useNotifications();
 
-  const loadTimetable = async () => {
+  const loadTimetable = async (requestedPage = page) => {
     try {
       setIsLoading(true);
       const [ttRes, subRes] = await Promise.all([
-        timetableService.getAll(selectedDay === 'all' ? null : selectedDay),
+        timetableService.getAll(selectedDay === 'all' ? null : selectedDay, { page: requestedPage, pageSize: 12 }),
         subjectService.getAll(),
       ]);
       setEntries(ttRes.data || []);
+      setPagination(ttRes.meta?.pagination || null);
       setSubjects(subRes.data || []);
+      return ttRes;
     } catch (err) {
       showToast(err.message || 'Failed to load timetable', 'error');
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +64,7 @@ const Timetable = () => {
 
   useEffect(() => {
     loadTimetable();
-  }, [selectedDay]);
+  }, [selectedDay, page]);
 
   const handleSaveSlot = async (slotData) => {
     try {
@@ -79,10 +86,14 @@ const Timetable = () => {
     if (!entryToDelete) return;
     try {
       setIsDeleting(true);
-      await timetableService.delete(entryToDelete._id);
+      const { nextPage } = await deleteAndRefreshPage(
+        page,
+        () => timetableService.delete(entryToDelete._id),
+        loadTimetable
+      );
       showToast('Timetable slot removed', 'success');
       setEntryToDelete(null);
-      loadTimetable();
+      if (nextPage !== page) setPage(nextPage);
     } catch (err) {
       showToast(err.message || 'Failed to delete entry', 'error');
     } finally {
@@ -124,7 +135,7 @@ const Timetable = () => {
           return (
             <button
               key={day}
-              onClick={() => setSelectedDay(day)}
+              onClick={() => { setPage(1); setSelectedDay(day); }}
               className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${
                 isSelected
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
@@ -144,7 +155,7 @@ const Timetable = () => {
         })}
 
         <button
-          onClick={() => setSelectedDay('all')}
+          onClick={() => { setPage(1); setSelectedDay('all'); }}
           className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
             selectedDay === 'all'
               ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
@@ -253,6 +264,8 @@ const Timetable = () => {
           })}
         </div>
       )}
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="class sessions" />
 
       {/* Timetable Slot Modal */}
       <TimetableModal

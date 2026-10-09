@@ -1,8 +1,8 @@
 import api from './api';
 
 export const timetableService = {
-  getAll: async (day = null) => {
-    return await api.get('/timetable', { params: day ? { day } : {} });
+  getAll: async (day = null, pagination = {}) => {
+    return await api.get('/timetable', { params: { ...(day ? { day } : {}), ...pagination } });
   },
 
   getTodayClasses: async () => {

@@ -9,6 +9,8 @@ const {
   escapeRegex,
   asSortField,
   asSortDirection,
+  parsePagination,
+  createPaginationMeta,
 } = require('../utils/sanitize');
 const { TASK_PRIORITIES, TASK_STATUSES } = require('../validators');
 
@@ -23,6 +25,8 @@ const getTasks = async (req, res, next) => {
     const search = escapeRegex(req.query.search);
     const sortBy = asSortField(req.query.sortBy, TASK_SORT_FIELDS, 'dueDate');
     const sortDir = asSortDirection(req.query.sortOrder);
+    const pagination = parsePagination(req.query);
+    if (pagination.errors) return errorResponse(res, 400, 'Invalid pagination parameters', pagination.errors);
 
     const query = { user: req.user._id };
 
@@ -42,11 +46,19 @@ const getTasks = async (req, res, next) => {
       ];
     }
 
-    const tasks = await Task.find(query)
-      .populate('subject', 'name code color')
-      .sort({ [sortBy]: sortDir });
+    const [tasks, totalItems] = await Promise.all([
+      Task.find(query)
+        .populate('subject', 'name code color')
+        .sort({ [sortBy]: sortDir, _id: sortDir })
+        .skip(pagination.skip)
+        .limit(pagination.pageSize),
+      Task.countDocuments(query),
+    ]);
 
-    return successResponse(res, 200, 'Tasks retrieved successfully', tasks, { count: tasks.length });
+    return successResponse(res, 200, 'Tasks retrieved successfully', tasks, {
+      count: tasks.length,
+      pagination: createPaginationMeta(totalItems, pagination.page, pagination.pageSize),
+    });
   } catch (error) {
     next(error);
   }

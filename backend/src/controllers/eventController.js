@@ -1,7 +1,7 @@
 const Event = require('../models/Event');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { validateEvent, EVENT_CATEGORIES } = require('../validators');
-const { asEnum, asBooleanString } = require('../utils/sanitize');
+const { asEnum, asBooleanString, parsePagination, createPaginationMeta } = require('../utils/sanitize');
 const { resolveTimeZone, startOfZonedDay, startOfZonedMonth } = require('../utils/timezone');
 
 const getEvents = async (req, res, next) => {
@@ -9,6 +9,8 @@ const getEvents = async (req, res, next) => {
     const category = asEnum(req.query.category, EVENT_CATEGORIES);
     const upcoming = asBooleanString(req.query.upcoming);
     const timeZone = resolveTimeZone(req);
+    const pagination = parsePagination(req.query);
+    if (pagination.errors) return errorResponse(res, 400, 'Invalid pagination parameters', pagination.errors);
 
     const query = { user: req.user._id };
 
@@ -29,9 +31,18 @@ const getEvents = async (req, res, next) => {
       query.date = { $gte: startOfMonth, $lt: startOfNext };
     }
 
-    const events = await Event.find(query).sort({ date: 1, time: 1 });
+    const [events, totalItems] = await Promise.all([
+      Event.find(query)
+        .sort({ date: 1, time: 1, _id: 1 })
+        .skip(pagination.skip)
+        .limit(pagination.pageSize),
+      Event.countDocuments(query),
+    ]);
 
-    return successResponse(res, 200, 'Events retrieved successfully', events, { count: events.length });
+    return successResponse(res, 200, 'Events retrieved successfully', events, {
+      count: events.length,
+      pagination: createPaginationMeta(totalItems, pagination.page, pagination.pageSize),
+    });
   } catch (error) {
     next(error);
   }

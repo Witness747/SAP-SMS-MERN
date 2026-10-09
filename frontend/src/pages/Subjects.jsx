@@ -8,6 +8,7 @@ import EmptyState from '../components/common/EmptyState';
 import { CardSkeleton } from '../components/common/Skeleton';
 import SubjectModal from '../components/subjects/SubjectModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import Pagination from '../components/common/Pagination';
 import {
   BookOpen,
   Plus,
@@ -17,10 +18,13 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
+import { deleteAndRefreshPage } from '../utils/pagination';
 
 const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Modals
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
@@ -30,13 +34,16 @@ const Subjects = () => {
 
   const { showToast } = useNotifications();
 
-  const loadSubjects = async () => {
+  const loadSubjects = async (requestedPage = page) => {
     try {
       setIsLoading(true);
-      const res = await subjectService.getAll();
+      const res = await subjectService.getAll({ page: requestedPage, pageSize: 12 });
       setSubjects(res.data || []);
+      setPagination(res.meta?.pagination || null);
+      return res;
     } catch (err) {
       showToast(err.message || 'Failed to load subjects', 'error');
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +51,7 @@ const Subjects = () => {
 
   useEffect(() => {
     loadSubjects();
-  }, []);
+  }, [page]);
 
   const handleSaveSubject = async (subjectData) => {
     try {
@@ -66,10 +73,14 @@ const Subjects = () => {
     if (!subjectToDelete) return;
     try {
       setIsDeleting(true);
-      await subjectService.delete(subjectToDelete._id);
+      const { nextPage } = await deleteAndRefreshPage(
+        page,
+        () => subjectService.delete(subjectToDelete._id),
+        loadSubjects
+      );
       showToast('Subject and associated attendance records deleted', 'success');
       setSubjectToDelete(null);
-      loadSubjects();
+      if (nextPage !== page) setPage(nextPage);
     } catch (err) {
       showToast(err.message || 'Failed to delete subject', 'error');
     } finally {
@@ -221,6 +232,8 @@ const Subjects = () => {
       )}
 
       {/* Subject Modal */}
+      <Pagination pagination={pagination} onPageChange={setPage} label="subjects" />
+
       <SubjectModal
         isOpen={isSubjectModalOpen}
         onClose={() => {

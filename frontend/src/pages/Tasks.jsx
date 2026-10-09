@@ -9,6 +9,7 @@ import EmptyState from '../components/common/EmptyState';
 import { TableSkeleton } from '../components/common/Skeleton';
 import TaskModal from '../components/tasks/TaskModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import Pagination from '../components/common/Pagination';
 import {
   CheckSquare,
   Plus,
@@ -21,11 +22,14 @@ import {
   Calendar,
 } from 'lucide-react';
 import { formatDate, getDaysRemaining, getPriorityBadgeVariant } from '../utils/formatters';
+import { deleteAndRefreshPage } from '../utils/pagination';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Filters & search
   const [search, setSearch] = useState('');
@@ -41,7 +45,7 @@ const Tasks = () => {
 
   const { showToast } = useNotifications();
 
-  const loadData = async () => {
+  const loadData = async (requestedPage = page) => {
     try {
       setIsLoading(true);
       const params = {};
@@ -59,6 +63,8 @@ const Tasks = () => {
       if (search.trim()) {
         params.search = search.trim();
       }
+      params.page = requestedPage;
+      params.pageSize = 12;
 
       const [taskRes, subRes] = await Promise.all([
         taskService.getAll(params),
@@ -66,9 +72,12 @@ const Tasks = () => {
       ]);
 
       setTasks(taskRes.data || []);
+      setPagination(taskRes.meta?.pagination || null);
       setSubjects(subRes.data || []);
+      return taskRes;
     } catch (err) {
       showToast(err.message || 'Failed to load tasks', 'error');
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -76,11 +85,12 @@ const Tasks = () => {
 
   useEffect(() => {
     loadData();
-  }, [statusFilter, priorityFilter, subjectFilter]);
+  }, [statusFilter, priorityFilter, subjectFilter, page]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    loadData();
+    setPage(1);
+    loadData(1);
   };
 
   const handleToggleTask = async (taskId) => {
@@ -113,10 +123,14 @@ const Tasks = () => {
     if (!taskToDelete) return;
     try {
       setIsDeleting(true);
-      await taskService.delete(taskToDelete._id);
+      const { nextPage } = await deleteAndRefreshPage(
+        page,
+        () => taskService.delete(taskToDelete._id),
+        loadData
+      );
       showToast('Task removed', 'success');
       setTaskToDelete(null);
-      loadData();
+      if (nextPage !== page) setPage(nextPage);
     } catch (err) {
       showToast(err.message || 'Failed to delete task', 'error');
     } finally {
@@ -182,7 +196,7 @@ const Tasks = () => {
           ].map((s) => (
             <button
               key={s.id}
-              onClick={() => setStatusFilter(s.id)}
+              onClick={() => { setPage(1); setStatusFilter(s.id); }}
               className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
                 statusFilter === s.id
                   ? 'bg-indigo-600 text-white shadow-xs'
@@ -196,7 +210,7 @@ const Tasks = () => {
           {/* Priority Select */}
           <select
             value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+            onChange={(e) => { setPage(1); setPriorityFilter(e.target.value); }}
             className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none"
           >
             <option value="all">All Priorities</option>
@@ -209,7 +223,7 @@ const Tasks = () => {
           {/* Subject Select */}
           <select
             value={subjectFilter}
-            onChange={(e) => setSubjectFilter(e.target.value)}
+            onChange={(e) => { setPage(1); setSubjectFilter(e.target.value); }}
             className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none"
           >
             <option value="all">All Subjects</option>
@@ -354,6 +368,8 @@ const Tasks = () => {
           })}
         </div>
       )}
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="tasks" />
 
       {/* Task Create / Edit Modal */}
       <TaskModal

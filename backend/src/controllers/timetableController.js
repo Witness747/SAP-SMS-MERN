@@ -1,7 +1,7 @@
 const Timetable = require('../models/Timetable');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { validateTimetable, validateTimeRange, VALID_DAYS } = require('../validators');
-const { asEnum } = require('../utils/sanitize');
+const { asEnum, parsePagination, createPaginationMeta } = require('../utils/sanitize');
 const { assertOwnedSubject } = require('../utils/subjectOwnership');
 const { resolveTimeZone, weekdayName } = require('../utils/timezone');
 
@@ -10,22 +10,39 @@ const DAY_ORDER = VALID_DAYS;
 const getTimetable = async (req, res, next) => {
   try {
     const day = asEnum(req.query.day, DAY_ORDER);
+    const pagination = parsePagination(req.query);
+    if (pagination.errors) return errorResponse(res, 400, 'Invalid pagination parameters', pagination.errors);
 
     const query = { user: req.user._id };
     if (day) query.day = day;
 
-    const entries = await Timetable.find(query)
-      .populate('subject', 'name code instructor color')
-      .sort({ startTime: 1 });
-
-    entries.sort((a, b) => {
-      const dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
-      if (dayDiff !== 0) return dayDiff;
-      return a.startTime.localeCompare(b.startTime);
-    });
+    const [entries, totalItems] = await Promise.all([
+      Timetable.aggregate([
+        { $match: query },
+        { $addFields: { __dayOrder: { $indexOfArray: [DAY_ORDER, '$day'] } } },
+        { $sort: { __dayOrder: 1, startTime: 1, _id: 1 } },
+        { $skip: pagination.skip },
+        { $limit: pagination.pageSize },
+        {
+          $lookup: {
+            from: 'subjects',
+            let: { subjectId: '$subject', ownerId: '$user' },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ['$_id', '$$subjectId'] }, { $eq: ['$user', '$$ownerId'] }] } } },
+              { $project: { name: 1, code: 1, instructor: 1, color: 1 } },
+            ],
+            as: 'subject',
+          },
+        },
+        { $unwind: { path: '$subject', preserveNullAndEmptyArrays: true } },
+        { $project: { __dayOrder: 0, 'subject.__v': 0 } },
+      ]),
+      Timetable.countDocuments(query),
+    ]);
 
     return successResponse(res, 200, 'Timetable retrieved successfully', entries, {
       count: entries.length,
+      pagination: createPaginationMeta(totalItems, pagination.page, pagination.pageSize),
     });
   } catch (error) {
     next(error);

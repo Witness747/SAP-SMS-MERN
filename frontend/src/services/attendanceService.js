@@ -1,8 +1,8 @@
 import api from './api';
 
 export const attendanceService = {
-  getAll: async () => {
-    return await api.get('/attendance');
+  getAll: async (params = {}) => {
+    return await api.get('/attendance', { params });
   },
 
   getById: async (id) => {

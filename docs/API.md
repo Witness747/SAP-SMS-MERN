@@ -14,6 +14,50 @@ All API endpoints reside under the `/api` root path. Authenticated routes requir
 }
 ```
 
+### Paginated List Responses
+The `GET /api/tasks`, `/api/events`, `/api/attendance`, `/api/subjects`, and `/api/timetable` list endpoints accept `page` and `pageSize` query parameters. `page` defaults to `1`; `pageSize` defaults to `20` and is capped at `100`. Both values must be positive base-10 integer strings. The server limits the calculated offset `(page - 1) * pageSize` to `10,000`; a request that exceeds that limit is rejected with `400 Bad Request`. The highest reachable page depends on the selected page size.
+
+Omitting both parameters returns the first page with the same response envelope and also includes `meta.pagination`. Existing resource metadata is retained. Where `meta.count` is returned, it is the number of records in the current page. Attendance instead retains its `meta.totalSubjects` and aggregate attendance fields. The pagination object contains:
+
+```json
+{
+  "page": 1,
+  "pageSize": 20,
+  "totalItems": 47,
+  "totalPages": 3,
+  "maxPage": 501,
+  "hasNextPage": true,
+  "hasPreviousPage": false
+}
+```
+
+`totalPages` is based on all matching records. `maxPage` is the last page permitted by the offset limit for this page size, so it can be lower than `totalPages`. `hasNextPage` is false when there are no more matching records or the next page would exceed the permitted offset. Invalid, missing-as-empty, repeated, negative, fractional, non-integer, unsafe, or out-of-range values return `400 Bad Request` with `success: false`, the message `Invalid pagination parameters`, and an `errors` array describing the invalid field or offset. Task, event, subject, attendance, and timetable list ordering includes a stable identifier tie-breaker where applicable.
+
+Example task response (shortened to two records):
+
+```json
+{
+  "success": true,
+  "message": "Tasks retrieved successfully",
+  "data": [
+    { "_id": "task-id-1", "title": "Read chapter 4" },
+    { "_id": "task-id-2", "title": "Submit lab report" }
+  ],
+  "meta": {
+    "count": 2,
+    "pagination": {
+      "page": 1,
+      "pageSize": 2,
+      "totalItems": 3,
+      "totalPages": 2,
+      "maxPage": 5001,
+      "hasNextPage": true,
+      "hasPreviousPage": false
+    }
+  }
+}
+```
+
 ### Error Response Envelope
 ```json
 {

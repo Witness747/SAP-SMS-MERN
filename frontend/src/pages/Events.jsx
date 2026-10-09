@@ -8,6 +8,7 @@ import EmptyState from '../components/common/EmptyState';
 import { TableSkeleton } from '../components/common/Skeleton';
 import EventModal from '../components/events/EventModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import Pagination from '../components/common/Pagination';
 import {
   Calendar,
   Plus,
@@ -18,6 +19,7 @@ import {
   CalendarCheck,
 } from 'lucide-react';
 import { formatDate, getCategoryBadgeVariant, getDaysRemaining } from '../utils/formatters';
+import { deleteAndRefreshPage } from '../utils/pagination';
 
 const CATEGORY_TABS = [
   { id: 'all', label: 'All Events' },
@@ -33,6 +35,8 @@ const Events = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [upcomingOnly, setUpcomingOnly] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Modals
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -42,7 +46,7 @@ const Events = () => {
 
   const { showToast } = useNotifications();
 
-  const loadEvents = async () => {
+  const loadEvents = async (requestedPage = page) => {
     try {
       setIsLoading(true);
       const params = {};
@@ -52,11 +56,16 @@ const Events = () => {
       if (upcomingOnly) {
         params.upcoming = 'true';
       }
+      params.page = requestedPage;
+      params.pageSize = 12;
 
       const res = await eventService.getAll(params);
       setEvents(res.data || []);
+      setPagination(res.meta?.pagination || null);
+      return res;
     } catch (err) {
       showToast(err.message || 'Failed to load events', 'error');
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +73,7 @@ const Events = () => {
 
   useEffect(() => {
     loadEvents();
-  }, [categoryFilter, upcomingOnly]);
+  }, [categoryFilter, upcomingOnly, page]);
 
   const handleSaveEvent = async (eventData) => {
     try {
@@ -86,10 +95,14 @@ const Events = () => {
     if (!eventToDelete) return;
     try {
       setIsDeleting(true);
-      await eventService.delete(eventToDelete._id);
+      const { nextPage } = await deleteAndRefreshPage(
+        page,
+        () => eventService.delete(eventToDelete._id),
+        loadEvents
+      );
       showToast('Event deleted', 'success');
       setEventToDelete(null);
-      loadEvents();
+      if (nextPage !== page) setPage(nextPage);
     } catch (err) {
       showToast(err.message || 'Failed to delete event', 'error');
     } finally {
@@ -128,7 +141,7 @@ const Events = () => {
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setCategoryFilter(tab.id)}
+              onClick={() => { setPage(1); setCategoryFilter(tab.id); }}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
                 categoryFilter === tab.id
                   ? 'bg-indigo-600 text-white shadow-xs'
@@ -144,7 +157,7 @@ const Events = () => {
           <input
             type="checkbox"
             checked={upcomingOnly}
-            onChange={(e) => setUpcomingOnly(e.target.checked)}
+            onChange={(e) => { setPage(1); setUpcomingOnly(e.target.checked); }}
             className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500"
           />
           <span>Upcoming only</span>
@@ -243,6 +256,8 @@ const Events = () => {
           })}
         </div>
       )}
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="events" />
 
       {/* Event Modal */}
       <EventModal

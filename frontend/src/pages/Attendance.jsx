@@ -8,6 +8,7 @@ import EmptyState from '../components/common/EmptyState';
 import { TableSkeleton } from '../components/common/Skeleton';
 import AttendanceModal from '../components/attendance/AttendanceModal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import Pagination from '../components/common/Pagination';
 import {
   PieChart,
   Check,
@@ -23,6 +24,8 @@ const Attendance = () => {
   const [records, setRecords] = useState([]);
   const [meta, setMeta] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   // Modals
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -32,12 +35,13 @@ const Attendance = () => {
 
   const { showToast } = useNotifications();
 
-  const loadAttendance = async () => {
+  const loadAttendance = async (requestedPage = page) => {
     try {
       setIsLoading(true);
-      const res = await attendanceService.getAll();
+      const res = await attendanceService.getAll({ page: requestedPage, pageSize: 12 });
       setRecords(res.data || []);
       setMeta(res.meta || {});
+      setPagination(res.meta?.pagination || null);
     } catch (err) {
       showToast(err.message || 'Failed to load attendance records', 'error');
     } finally {
@@ -47,7 +51,7 @@ const Attendance = () => {
 
   useEffect(() => {
     loadAttendance();
-  }, []);
+  }, [page]);
 
   const handleQuickLog = async (id, action) => {
     try {
@@ -292,6 +296,8 @@ const Attendance = () => {
           })}
         </div>
       )}
+
+      <Pagination pagination={pagination} onPageChange={setPage} label="subjects" />
 
       {/* Adjust Modal */}
       <AttendanceModal

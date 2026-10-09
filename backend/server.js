@@ -1,4 +1,6 @@
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'test') {
+  require('dotenv').config();
+}
 const http = require('http');
 const { assertJwtSecret } = require('./src/config/env');
 const app = require('./src/app');
@@ -16,7 +18,9 @@ const startServer = async () => {
 
   server.listen(PORT, () => {
     console.log('==================================================');
-    startReminderScheduler();
+    if (process.env.NODE_ENV !== 'test') {
+      startReminderScheduler();
+    }
     console.log(`🚀 SAP-SMS Backend Server running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🌐 API listening on port ${PORT} at /api`);
