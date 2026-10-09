@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { apiLimiter } = require('./middleware/rateLimiters');
+const { parseTrustProxyHops } = require('./config/env');
 const { initWebPush } = require('./services/notificationService');
 const { getDatabaseStatus } = require('./config/db');
 
@@ -17,6 +19,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
+
+app.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
 
 initWebPush();
 
@@ -86,6 +90,9 @@ app.get('/api', (req, res) => {
     },
   });
 });
+
+// Keep health probes outside the general API limit while bounding API abuse.
+app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectRoutes);

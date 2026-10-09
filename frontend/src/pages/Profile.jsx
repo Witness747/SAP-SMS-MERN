@@ -8,7 +8,7 @@ import { User, Mail, School, Lock, Phone, Hash, Save } from 'lucide-react';
 import { getInitials } from '../utils/formatters';
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, updateToken } = useAuth();
   const { showToast } = useNotifications();
 
   // Profile Form state
@@ -72,10 +72,11 @@ const Profile = () => {
 
     try {
       setIsChangingPassword(true);
-      await authService.changePassword({
+      const response = await authService.changePassword({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
+      if (response?.data?.token) updateToken(response.data.token);
       showToast('Password updated successfully', 'success');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {

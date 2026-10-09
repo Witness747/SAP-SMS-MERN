@@ -2,6 +2,8 @@
 
 All API endpoints reside under the `/api` root path. Authenticated routes require an `Authorization: Bearer <token>` HTTP header.
 
+The API returns `429 Too Many Requests` when a rate limit is exceeded. Resource and notification routes share a per-client-IP limit; `/api/health` remains outside that limit for deployment probes. Registration/login and password changes have additional, lower limits. See [DEPLOYMENT.md](DEPLOYMENT.md#api-abuse-limits-and-proxy-trust) for thresholds, proxy configuration, and multi-instance limitations.
+
 ## Response Standards
 
 ### Success Response Envelope
@@ -130,6 +132,7 @@ Example task response (shortened to two records):
 - **Route**: `PUT /api/auth/change-password`
 - **Access**: Private
 - **Body**: `{ "currentPassword", "newPassword" }`
+- **Validation**: New passwords must be at least 6 characters and no more than 72 UTF-8 bytes (bcrypt input limit). Unknown fields are rejected. A successful change returns a replacement token and invalidates previous tokens for that account.
 
 ### Logout
 - **Route**: `POST /api/auth/logout`
@@ -305,4 +308,6 @@ Example task response (shortened to two records):
 - `POST /api/notifications/subscribe`: Store browser PushSubscription JSON.
 - `POST /api/notifications/subscription/status`: Compare the browser's current endpoint with the authenticated account's stored subscription. Body: `{ "endpoint": "https://..." }` or `{ "endpoint": null }`.
 - `DELETE /api/notifications/subscription`: Remove the authenticated account's subscription. Optional body endpoint scopes removal to that exact browser subscription.
-- `POST /api/notifications/test`: Request a test push. `data.status` distinguishes `sent_to_push_service`, `no_subscription`, `vapid_unavailable`, `stale_subscription`, `push_service_auth_failed`, `transient_failure`, and `delivery_failed`. A successful status means the push service accepted the send; it does not confirm that the browser displayed it.
+- `POST /api/notifications/test`: Request a test push. `data.status` distinguishes `sent_to_push_service`, `no_subscription`, `vapid_unavailable`, `invalid_subscription`, `stale_subscription`, `push_service_auth_failed`, `transient_failure`, and `delivery_failed`. `invalid_subscription` means the stored push endpoint failed validation and the notification was not sent. A successful status means the push service accepted the send; it does not confirm that the browser displayed it.
+
+Push subscription endpoints must use HTTPS and a recognized browser push-service host: Google FCM, Mozilla Push, Apple Push, or Microsoft WNS. Arbitrary HTTPS hosts are rejected because the server sends notifications to the stored endpoint.

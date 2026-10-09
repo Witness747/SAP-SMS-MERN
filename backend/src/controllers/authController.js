@@ -2,7 +2,7 @@ const User = require('../models/User');
 const NotificationPreference = require('../models/NotificationPreference');
 const generateToken = require('../utils/generateToken');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
-const { validateRegister, validateLogin } = require('../validators');
+const { validateRegister, validateLogin, validateProfileUpdate, validatePasswordChange } = require('../validators');
 
 /**
  * @desc    Register a new student
@@ -46,7 +46,7 @@ const register = async (req, res, next) => {
     });
 
     // Generate JWT
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     return successResponse(
       res,
@@ -84,7 +84,7 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     // Find user by email
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+tokenVersion');
     if (!user) {
       return errorResponse(res, 401, 'Invalid email or password.');
     }
@@ -95,7 +95,7 @@ const login = async (req, res, next) => {
       return errorResponse(res, 401, 'Invalid email or password.');
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.tokenVersion || 0);
 
     return successResponse(
       res,
@@ -143,6 +143,9 @@ const getMe = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
+    const validationErrors = validateProfileUpdate(req.body);
+    if (validationErrors.length > 0) return errorResponse(res, 400, 'Validation failed', validationErrors);
+
     const { name, studentId, department, semester, institution, phone, avatar } = req.body;
 
     const user = await User.findById(req.user._id);
@@ -182,17 +185,12 @@ const updateProfile = async (req, res, next) => {
  */
 const changePassword = async (req, res, next) => {
   try {
+    const validationErrors = validatePasswordChange(req.body);
+    if (validationErrors.length > 0) return errorResponse(res, 400, 'Validation failed', validationErrors);
+
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return errorResponse(res, 400, 'Both current password and new password are required');
-    }
-
-    if (newPassword.length < 6) {
-      return errorResponse(res, 400, 'New password must be at least 6 characters long');
-    }
-
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+tokenVersion');
     if (!user) {
       return errorResponse(res, 404, 'User not found');
     }
@@ -203,9 +201,12 @@ const changePassword = async (req, res, next) => {
     }
 
     user.passwordHash = await User.hashPassword(newPassword);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
-    return successResponse(res, 200, 'Password changed successfully');
+    return successResponse(res, 200, 'Password changed successfully', {
+      token: generateToken(user._id, user.tokenVersion),
+    });
   } catch (error) {
     next(error);
   }

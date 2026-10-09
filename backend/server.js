@@ -2,17 +2,20 @@ if (process.env.NODE_ENV !== 'test') {
   require('dotenv').config();
 }
 const http = require('http');
-const { assertJwtSecret } = require('./src/config/env');
+const { assertJwtSecret, assertProductionConfig } = require('./src/config/env');
 const app = require('./src/app');
 const { connectDB, disconnectDB } = require('./src/config/db');
 const { startReminderScheduler, stopReminderScheduler } = require('./src/services/reminderService');
 
-assertJwtSecret();
-
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
+  assertJwtSecret();
+  assertProductionConfig();
+  const connected = await connectDB();
+  if (!connected) {
+    throw new Error('Database connection is required before the API can start.');
+  }
 
   const server = http.createServer(app);
 
@@ -29,14 +32,17 @@ const startServer = async () => {
   });
 
   // Graceful shutdown handlers
-  const gracefulShutdown = async (signal) => {
+  let shuttingDown = false;
+  const gracefulShutdown = async (signal, exitCode = 0) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`\n${signal} received. Initiating graceful shutdown...`);
     await stopReminderScheduler();
     server.close(async () => {
       console.log('HTTP server closed.');
       await disconnectDB();
       console.log('Process terminated safely.');
-      process.exit(0);
+      process.exit(exitCode);
     });
 
     // Force exit if not closed within 10 seconds
@@ -51,14 +57,21 @@ const startServer = async () => {
 
   // Global uncaught error handling
   process.on('unhandledRejection', (err) => {
-    console.error(`💥 Unhandled Rejection: ${err.message}`);
-    // In production we would log and potentially restart
+    console.error(`Unhandled rejection (${err?.name || 'Error'}); shutting down.`);
+    gracefulShutdown('unhandledRejection', 1);
   });
 
   process.on('uncaughtException', (err) => {
-    console.error(`💥 Uncaught Exception: ${err.message}`);
-    process.exit(1);
+    console.error(`Uncaught exception (${err?.name || 'Error'}); shutting down.`);
+    gracefulShutdown('uncaughtException', 1);
   });
 };
 
-startServer();
+if (require.main === module) {
+  startServer().catch((error) => {
+    console.error(`Server startup failed (${error?.name || 'Error'}).`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { startServer };

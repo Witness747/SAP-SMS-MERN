@@ -1,4 +1,5 @@
 const webpush = require('web-push');
+const { validatePushEndpoint } = require('../validators');
 
 /**
  * Web Push Notification Service
@@ -18,7 +19,7 @@ const initWebPush = () => {
       isPushConfigured = true;
       console.log('✅ Web Push initialized with VAPID credentials.');
     } catch (err) {
-      console.warn(`⚠️ Failed to initialize VAPID credentials: ${err.message}`);
+      console.warn(`Web Push initialization failed (${err?.name || 'Error'}).`);
       isPushConfigured = false;
     }
   } else {
@@ -37,6 +38,11 @@ const initWebPush = () => {
 const sendPushNotification = async (subscription, payload) => {
   if (!isPushConfigured) return { status: 'vapid_unavailable' };
   if (!subscription || !subscription.endpoint) return { status: 'no_subscription' };
+  if (validatePushEndpoint(subscription.endpoint).length > 0) {
+    // Stored subscriptions may predate endpoint validation. Do not send or log
+    // their endpoint; report a safe outcome to the caller instead.
+    return { status: 'invalid_subscription' };
+  }
 
   try {
     const stringifiedPayload = JSON.stringify({

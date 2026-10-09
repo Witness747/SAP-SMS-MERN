@@ -178,7 +178,7 @@ const processDueReminders = async ({ now = new Date() } = {}) => {
         else skipped += 1;
       } catch (error) {
         skipped += 1;
-        console.error(`[reminders] delivery failed: ${reminder.sourceType} ${reminder.sourceId} user ${reminder.user}: ${error.message}`);
+        console.error(`[reminders] delivery failed (${reminder.sourceType}, ${error?.name || 'Error'}).`);
       }
     }
     return { sent, skipped };
@@ -194,9 +194,9 @@ const startReminderScheduler = () => {
   if (timer) return;
   console.log('[reminders] scheduler started (every 60 seconds)');
   // Run immediately, then on the configured periodic interval.
-  processDueReminders().catch((error) => console.error(`[reminders] scan failed: ${error.message}`));
+  processDueReminders().catch((error) => console.error(`[reminders] scan failed (${error?.name || 'Error'}).`));
   timer = setInterval(() => {
-    processDueReminders().catch((error) => console.error(`[reminders] scan failed: ${error.message}`));
+    processDueReminders().catch((error) => console.error(`[reminders] scan failed (${error?.name || 'Error'}).`));
   }, SCAN_INTERVAL_MS);
   timer.unref?.();
 };
@@ -208,7 +208,7 @@ const stopReminderScheduler = async () => {
     try {
       await activeRun;
     } catch (error) {
-      console.error(`[reminders] scan failed during shutdown: ${error.message}`);
+      console.error(`[reminders] scan failed during shutdown (${error?.name || 'Error'}).`);
     }
   }
   console.log('[reminders] scheduler stopped');

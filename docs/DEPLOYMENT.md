@@ -19,6 +19,7 @@ Configure these backend environment variables in the hosting dashboard:
 | `JWT_EXPIRES_IN` | Optional; defaults to `7d` | Token lifetime accepted by `jsonwebtoken` |
 | `NODE_ENV` | Set to `production` | Production logging and CORS behavior |
 | `CLIENT_URL` | Required for browser access | Exact Vercel origin, for example `https://your-app.vercel.app`, without a trailing slash |
+| `TRUST_PROXY_HOPS` | Required when deployed behind a trusted reverse proxy | Exact number of trusted proxy hops used for client IP and rate-limit keys; see below |
 | `PORT` | Platform provided | HTTP listener port |
 | `APP_TIMEZONE` | Optional | Reminder fallback timezone when a user timezone is unavailable |
 | `VAPID_PUBLIC_KEY` | Optional | Public Web Push application server key |
@@ -26,6 +27,14 @@ Configure these backend environment variables in the hosting dashboard:
 | `VAPID_SUBJECT` | Optional | Contact URI for Web Push, such as a `mailto:` address |
 
 Production CORS allows only the exact `CLIENT_URL`. Set that value to the deployed frontend origin. The backend exposes `GET /api/health`; configure the host health check to use this path. It reports healthy only when MongoDB responds to the database ping.
+
+### API abuse limits and proxy trust
+
+The general in-process limiter allows 300 requests per IP per 15 minutes. In middleware order, `GET /api/health` and `GET /api` are handled before the limiter is mounted, so neither is counted. Requests that continue to the later `/api` middleware pass through the limiter before the API route routers. Registration and login have an additional limit of 20 attempts per IP per 15 minutes; password changes have an additional limit of 10 per IP per 15 minutes. Development and test use higher limits. The `express-rate-limit` default memory store is appropriate for a single demo instance, but each instance has a separate counter and counters reset on restart. Multi-instance deployments need a shared store (for example Redis) to enforce limits consistently; this project does not currently configure one.
+
+Express does not trust forwarded client IP headers by default. Set `TRUST_PROXY_HOPS` to the exact number of trusted ingress proxies between clients and this API (commonly `1` when the host has a single trusted proxy). Do not set a broad trust value such as `true`, and do not expose the service directly around a proxy-hop setting: otherwise clients may spoof forwarded addresses. The application accepts only integer hop counts from 0 through 5 and defaults to trusting no proxy.
+
+Access tokens are signed JWTs with a default lifetime of seven days and are stored by the frontend in `localStorage`. Logout removes the browser copy but cannot revoke a token already issued. Changing a password increments the account token version, invalidating previous tokens and returning a replacement token to the current browser. Keep the lifetime deliberate and rotate `JWT_SECRET` to invalidate all outstanding tokens. A future production session design could use short-lived access tokens with refresh-token rotation/revocation and HttpOnly secure cookies.
 
 The P2.1 reminder scheduler runs in the backend process every 60 seconds. Keep one backend instance for the MVP; the MongoDB ledger reduces duplicate sends but an in-process scheduler is not a distributed queue.
 

@@ -47,6 +47,7 @@ const models = { User, Event, Task, Subject, Attendance, Timetable, Notification
 let server;
 let baseUrl;
 let token;
+let ownerPassword;
 let fixtureSubject;
 
 const remember = (modelName, documentOrId) => {
@@ -55,9 +56,10 @@ const remember = (modelName, documentOrId) => {
   return documentOrId;
 };
 
-const api = async (path, { method = 'GET', body, authenticated = true } = {}) => {
+const api = async (path, { method = 'GET', body, authenticated = true, requestToken = token, authorization } = {}) => {
   const headers = { 'Content-Type': 'application/json' };
-  if (authenticated && token) headers.Authorization = `Bearer ${token}`;
+  if (authenticated && requestToken) headers.Authorization = `Bearer ${requestToken}`;
+  if (authorization !== undefined) headers.Authorization = authorization;
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
@@ -201,13 +203,25 @@ after(async () => {
 });
 
 test('real API pagination and deletion boundaries for events, tasks, subjects, and timetable', async () => {
+  const privilegedRegistration = await api('/api/auth/register', {
+    method: 'POST',
+    authenticated: false,
+    body: {
+      name: `P3 Privilege ${runId}`,
+      email: `p3-privilege-${runId}@example.invalid`,
+      password: randomUUID() + randomUUID(),
+      role: 'admin',
+    },
+  });
+  assert.equal(privilegedRegistration.status, 400);
+
   const registered = expectSuccess(await api('/api/auth/register', {
     method: 'POST',
     authenticated: false,
     body: {
       name: `P3 Integration ${runId}`,
       email: `p3-${runId}@example.invalid`,
-      password: randomUUID() + randomUUID(),
+      password: (ownerPassword = randomUUID() + randomUUID()),
     },
   }), 201);
   token = registered.data.token;
@@ -215,6 +229,18 @@ test('real API pagination and deletion boundaries for events, tasks, subjects, a
 
   const preference = await NotificationPreference.findOne({ user: registered.data.user.id }).select('_id').lean();
   if (preference) remember('NotificationPreference', preference._id);
+  assert.equal((await api('/api/subjects', { authenticated: false })).status, 401);
+  assert.equal((await api('/api/subjects', { authorization: 'BearerXYZ invalid' })).status, 401);
+  assert.equal((await api('/api/events/not-a-valid-id')).status, 400);
+  assert.equal((await api('/api/auth/profile', { method: 'PUT', body: { role: 'admin' } })).status, 400);
+  assert.equal((await api('/api/auth/change-password', {
+    method: 'PUT',
+    body: { currentPassword: { $ne: '' }, newPassword: 'password123' },
+  })).status, 400);
+  assert.equal((await api('/api/notifications/preferences', {
+    method: 'PUT',
+    body: { taskReminders: 'false' },
+  })).status, 400);
 
   const subjects = [];
   for (let index = 0; index < 14; index += 1) subjects.push(await createSubject(index));
@@ -253,6 +279,42 @@ test('real API pagination and deletion boundaries for events, tasks, subjects, a
     }), 201);
     remember('Timetable', slot.data);
   }
+
+  const otherRegistration = expectSuccess(await api('/api/auth/register', {
+    method: 'POST',
+    authenticated: false,
+    body: {
+      name: `P3 Other ${runId}`,
+      email: `p3-other-${runId}@example.invalid`,
+      password: randomUUID() + randomUUID(),
+    },
+  }), 201);
+  remember('User', otherRegistration.data.user.id);
+  const otherPreference = await NotificationPreference.findOne({ user: otherRegistration.data.user.id }).select('_id').lean();
+  if (otherPreference) remember('NotificationPreference', otherPreference._id);
+
+  const ownerEvent = expectSuccess(await api(query('/api/events', { page: 1, pageSize: 1 })), 200).data[0];
+  assert.equal((await api(`/api/events/${ownerEvent._id}`, { requestToken: otherRegistration.data.token })).status, 404);
+  assert.equal((await api(`/api/events/${ownerEvent._id}`, {
+    method: 'PUT',
+    body: { title: 'Unauthorized update attempt' },
+    requestToken: otherRegistration.data.token,
+  })).status, 404);
+  assert.equal((await api(`/api/events/${ownerEvent._id}`, {
+    method: 'DELETE',
+    requestToken: otherRegistration.data.token,
+  })).status, 404);
+  const ownerEventAfter = expectSuccess(await api(`/api/events/${ownerEvent._id}`), 200);
+  assert.notEqual(ownerEventAfter.data.title, 'Unauthorized update attempt');
+  assert.equal((await api('/api/tasks', {
+    method: 'POST',
+    requestToken: otherRegistration.data.token,
+    body: {
+      title: 'Foreign subject attempt',
+      dueDate: '2035-06-01',
+      subject: fixtureSubject._id,
+    },
+  })).status, 403);
 
   const eventFilter = { category: 'meeting', upcoming: 'true' };
   const taskFilter = { status: 'pending', priority: 'high' };
@@ -303,4 +365,15 @@ test('real API pagination and deletion boundaries for events, tasks, subjects, a
   await verifyOnlyRecordCase('/api/tasks', taskFilter);
   await verifyOnlyRecordCase('/api/timetable', timetableFilter);
   await verifyOnlyRecordCase('/api/subjects', subjectFilter);
+
+  const oldToken = token;
+  const changedPassword = randomUUID() + randomUUID();
+  const passwordResponse = expectSuccess(await api('/api/auth/change-password', {
+    method: 'PUT',
+    body: { currentPassword: ownerPassword, newPassword: changedPassword },
+  }), 200);
+  assert.ok(passwordResponse.data.token);
+  assert.equal((await api('/api/auth/me', { requestToken: oldToken })).status, 401);
+  token = passwordResponse.data.token;
+  assert.equal(expectSuccess(await api('/api/auth/me'), 200).data.user.email, `p3-${runId}@example.invalid`);
 });

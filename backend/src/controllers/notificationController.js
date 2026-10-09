@@ -2,7 +2,7 @@ const NotificationPreference = require('../models/NotificationPreference');
 const { sendPushNotification, clearPushSubscription, isPushConfigured } = require('../services/notificationService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { isValidTimeZone } = require('../utils/timezone');
-const { validatePushSubscription } = require('../validators');
+const { validatePushSubscription, validateNotificationPreferences } = require('../validators');
 
 const updatePreferenceTimeZone = (prefs, req) => {
   const timeZone = req.get('X-Client-Timezone');
@@ -45,6 +45,9 @@ const getPreferences = async (req, res, next) => {
  */
 const updatePreferences = async (req, res, next) => {
   try {
+    const validationErrors = validateNotificationPreferences(req.body);
+    if (validationErrors.length) return errorResponse(res, 400, 'Invalid notification preferences', validationErrors);
+
     const { taskReminders, eventReminders, attendanceWarnings, timetableReminders } = req.body;
 
     let prefs = await NotificationPreference.findOne({ user: req.user._id });
@@ -53,10 +56,10 @@ const updatePreferences = async (req, res, next) => {
     }
     updatePreferenceTimeZone(prefs, req);
 
-    if (taskReminders !== undefined) prefs.taskReminders = Boolean(taskReminders);
-    if (eventReminders !== undefined) prefs.eventReminders = Boolean(eventReminders);
-    if (attendanceWarnings !== undefined) prefs.attendanceWarnings = Boolean(attendanceWarnings);
-    if (timetableReminders !== undefined) prefs.timetableReminders = Boolean(timetableReminders);
+    if (taskReminders !== undefined) prefs.taskReminders = taskReminders;
+    if (eventReminders !== undefined) prefs.eventReminders = eventReminders;
+    if (attendanceWarnings !== undefined) prefs.attendanceWarnings = attendanceWarnings;
+    if (timetableReminders !== undefined) prefs.timetableReminders = timetableReminders;
 
     await prefs.save();
 

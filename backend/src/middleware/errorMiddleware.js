@@ -22,13 +22,19 @@ const notFound = (req, res, next) => {
  * Central Error Handler Middleware
  */
 const errorHandler = (err, req, res, next) => {
-  let statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
+  let statusCode = err.status || err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
   let message = err.message || 'Internal Server Error';
   let errors = null;
 
-  console.error(`[${req.method} ${req.originalUrl}] ${err.name || 'Error'}: ${err.message}`);
-  if (err.stack) {
-    console.error(err.stack);
+  // Parser/driver messages and stack traces may contain payload or connection details.
+  console.error(`[${req.method} ${req.path}] ${err.name || 'Error'}`);
+
+  if (err.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'Request body is too large';
+  } else if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'Malformed JSON request body';
   }
 
   if (err.name === 'CastError' && err.kind === 'ObjectId') {
