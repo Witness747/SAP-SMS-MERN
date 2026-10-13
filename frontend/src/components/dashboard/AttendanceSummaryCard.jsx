@@ -4,7 +4,11 @@ import Card, { CardHeader, CardContent } from '../common/Card';
 import Badge from '../common/Badge';
 import { AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-const AttendanceSummaryCard = ({ overallPercentage = 0, lowAttendanceSubjects = [] }) => {
+const AttendanceSummaryCard = ({
+  overallPercentage = 0,
+  lowAttendanceSubjects = [],
+  hasAttendanceData = true,
+}) => {
   const isHealthy = overallPercentage >= 75;
 
   return (
@@ -30,27 +34,39 @@ const AttendanceSummaryCard = ({ overallPercentage = 0, lowAttendanceSubjects = 
             </span>
             <span
               className={`text-lg font-bold ${
-                isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                !hasAttendanceData
+                  ? 'text-slate-600 dark:text-slate-400'
+                  : isHealthy
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-rose-600 dark:text-rose-400'
               }`}
             >
-              {overallPercentage}%
+              {hasAttendanceData ? `${overallPercentage}%` : 'No data'}
             </span>
           </div>
 
           <div className="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                isHealthy
+                !hasAttendanceData
+                  ? 'bg-slate-300 dark:bg-slate-600'
+                  : isHealthy
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                   : 'bg-gradient-to-r from-rose-500 to-amber-500'
               }`}
-              style={{ width: `${Math.min(100, overallPercentage)}%` }}
+              style={{ width: `${hasAttendanceData ? Math.min(100, overallPercentage) : 0}%` }}
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2">
             <span>Minimum target: 75%</span>
-            <span>{isHealthy ? 'Target met' : 'Below target requirement'}</span>
+            <span>
+              {!hasAttendanceData
+                ? 'No classes logged yet'
+                : isHealthy
+                ? 'Target met'
+                : 'Below target requirement'}
+            </span>
           </div>
         </div>
 
@@ -60,7 +76,11 @@ const AttendanceSummaryCard = ({ overallPercentage = 0, lowAttendanceSubjects = 
             Subject Alerts ({lowAttendanceSubjects.length})
           </h5>
 
-          {lowAttendanceSubjects.length === 0 ? (
+          {!hasAttendanceData ? (
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl text-slate-600 dark:text-slate-400 text-xs font-medium">
+              No classes logged yet. Enrolled subjects will appear here once sessions are recorded.
+            </div>
+          ) : lowAttendanceSubjects.length === 0 ? (
             <div className="flex items-center gap-2 p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
               <span>Great job! All your subjects meet or exceed their attendance targets.</span>
@@ -78,7 +98,7 @@ const AttendanceSummaryCard = ({ overallPercentage = 0, lowAttendanceSubjects = 
                       <span className="font-semibold text-rose-900 dark:text-rose-200">
                         {sub.code || sub.subject}
                       </span>
-                      <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">
+                      <p className="text-xs text-rose-700 dark:text-rose-300">
                         Needs {sub.classesNeeded} more class{sub.classesNeeded === 1 ? '' : 'es'}
                       </p>
                     </div>

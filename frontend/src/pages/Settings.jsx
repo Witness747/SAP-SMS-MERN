@@ -88,9 +88,9 @@ const Settings = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 sm:space-y-7 min-w-0">
       {/* Top Header */}
-      <div>
+      <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           Application Preferences & Settings
         </h1>
@@ -258,31 +258,33 @@ const Settings = () => {
       </Card>
 
       {/* System & Architecture Info */}
-      <Card>
-        <CardHeader
-          title="System Architecture (MERN Stack)"
-          subtitle="Technology specifications of this deployment"
-        />
-        <CardContent className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-              <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 mb-1">
-                <Server className="w-4 h-4 text-emerald-500" /> Database & Backend
-              </span>
-              <p>MongoDB Atlas (ODM: Mongoose 8.x)</p>
-              <p>Node.js + Express REST API</p>
-            </div>
+      {(import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true') && (
+        <Card>
+          <CardHeader
+            title="System Architecture (MERN Stack)"
+            subtitle="Technology specifications of this deployment"
+          />
+          <CardContent className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 mb-1">
+                  <Server className="w-4 h-4 text-emerald-500" /> Database & Backend
+                </span>
+                <p>MongoDB Atlas (ODM: Mongoose 8.x)</p>
+                <p>Node.js + Express REST API</p>
+              </div>
 
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-              <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 mb-1">
-                <Layers className="w-4 h-4 text-indigo-500" /> Frontend Client & PWA
-              </span>
-              <p>React 18 + Vite + Tailwind CSS</p>
-              <p>Service Worker + Web Push</p>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 mb-1">
+                  <Layers className="w-4 h-4 text-indigo-500" /> Frontend Client & PWA
+                </span>
+                <p>React 18 + Vite + Tailwind CSS</p>
+                <p>Service Worker + Web Push</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

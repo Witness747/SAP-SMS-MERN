@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
-import { Sun, Moon } from 'lucide-react';
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from '../utils/constants';
 
 const AuthLayout = () => {
   const { isDark, toggleTheme } = useTheme();
@@ -13,8 +13,9 @@ const AuthLayout = () => {
       <div className="absolute top-4 right-4">
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-          aria-label="Toggle theme"
+          className="touch-target flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+          aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+          title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
         >
           {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
         </button>
@@ -25,10 +26,10 @@ const AuthLayout = () => {
           <GraduationCap className="w-8 h-8" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          SAP-SMS
+          {PRODUCT_NAME}
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-          Student Academic Planner & Management System
+          {PRODUCT_TAGLINE}
         </p>
       </div>
 
@@ -37,9 +38,11 @@ const AuthLayout = () => {
           <Outlet />
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
-          Full-Stack MERN Architecture • Secure JWT Authentication
-        </p>
+        {(import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true') && (
+          <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            Full-Stack MERN Architecture • Secure JWT Authentication
+          </p>
+        )}
       </div>
     </div>
   );

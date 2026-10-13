@@ -104,16 +104,18 @@ const Login = () => {
       </form>
 
       {/* Demo Credentials Quick Fill */}
-      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={fillDemoCredentials}
-          className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Auto-fill Demo Student Credentials</span>
-        </button>
-      </div>
+      {(import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true') && (
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={fillDemoCredentials}
+            className="w-full min-h-[40px] py-2 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Auto-fill Demo Student Credentials</span>
+          </button>
+        </div>
+      )}
 
       <div className="mt-5 text-center">
         <p className="text-xs text-slate-500 dark:text-slate-400">

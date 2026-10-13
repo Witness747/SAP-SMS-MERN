@@ -26,7 +26,7 @@ const BottomNav = () => {
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[10px] font-medium transition-colors ${
+              `flex flex-col items-center justify-center py-1 px-3 rounded-xl text-xs font-medium transition-colors ${
                 isActive
                   ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'

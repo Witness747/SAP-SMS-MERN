@@ -102,10 +102,10 @@ const Timetable = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-7 min-w-0">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Weekly Class Schedule
           </h1>
@@ -114,16 +114,19 @@ const Timetable = () => {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => {
-            setSelectedEntry(null);
-            setIsSlotModalOpen(true);
-          }}
-          leftIcon={Plus}
-        >
-          Add Class Slot
-        </Button>
+        <div className="flex-shrink-0">
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedEntry(null);
+              setIsSlotModalOpen(true);
+            }}
+            leftIcon={Plus}
+            className="w-full sm:w-auto"
+          >
+            Add Class Slot
+          </Button>
+        </div>
       </div>
 
       {/* Day Selector Tabs */}
@@ -246,15 +249,17 @@ const Timetable = () => {
                       setSelectedEntry(entry);
                       setIsSlotModalOpen(true);
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="touch-target p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center"
                     title="Edit Slot"
+                    aria-label={`Edit ${entry.subject?.name || 'class'} slot on ${entry.day}`}
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setEntryToDelete(entry)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                    className="touch-target p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center justify-center"
                     title="Delete Slot"
+                    aria-label={`Delete ${entry.subject?.name || 'class'} slot on ${entry.day}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

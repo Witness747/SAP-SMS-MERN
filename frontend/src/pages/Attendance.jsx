@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { attendanceService } from '../services/attendanceService';
 import { useNotifications } from '../hooks/useNotifications';
 import Card, { CardContent } from '../components/common/Card';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 const Attendance = () => {
+  const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [meta, setMeta] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -103,13 +105,13 @@ const Attendance = () => {
       </div>
 
       {/* Aggregate Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Attended</p>
           <h4 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
             {meta.totalAttendedAll || 0}
           </h4>
-          <p className="text-[11px] text-slate-400 mt-0.5">Classes present</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Classes present</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -117,33 +119,43 @@ const Attendance = () => {
           <h4 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
             {meta.totalHeldAll || 0}
           </h4>
-          <p className="text-[11px] text-slate-400 mt-0.5">Total classes held</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total classes held</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Aggregate Rate</p>
           <h4
             className={`text-2xl font-bold mt-1 ${
-              (meta.overallPercentage || 0) >= 75
+              (meta.totalHeldAll || 0) === 0
+                ? 'text-slate-700 dark:text-slate-300'
+                : (meta.overallPercentage || 0) >= 75
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {meta.overallPercentage || 0}%
+            {(meta.totalHeldAll || 0) === 0 ? '—' : `${meta.overallPercentage || 0}%`}
           </h4>
-          <p className="text-[11px] text-slate-400 mt-0.5">Standard minimum: 75%</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {(meta.totalHeldAll || 0) === 0 ? 'No classes logged yet' : 'Standard minimum: 75%'}
+          </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Low Attendance</p>
           <h4
             className={`text-2xl font-bold mt-1 ${
-              (meta.lowAttendanceCount || 0) > 0 ? 'text-rose-500' : 'text-emerald-500'
+              (meta.totalHeldAll || 0) === 0
+                ? 'text-slate-700 dark:text-slate-300'
+                : (meta.lowAttendanceCount || 0) > 0
+                ? 'text-rose-500'
+                : 'text-emerald-500'
             }`}
           >
-            {meta.lowAttendanceCount || 0}
+            {(meta.totalHeldAll || 0) === 0 ? '0' : meta.lowAttendanceCount || 0}
           </h4>
-          <p className="text-[11px] text-slate-400 mt-0.5">Subjects below target</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {(meta.totalHeldAll || 0) === 0 ? 'No low records' : 'Subjects below target'}
+          </p>
         </div>
       </div>
 
@@ -155,6 +167,8 @@ const Attendance = () => {
           icon={PieChart}
           title="No attendance records available"
           description="Enrolling in subjects will automatically initialize your attendance tracker."
+          actionLabel="Go to Subjects"
+          onAction={() => navigate('/subjects')}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -184,15 +198,17 @@ const Attendance = () => {
                           setSelectedRecord(rec);
                           setIsAdjustModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="touch-target p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center"
                         title="Adjust numbers manually"
+                        aria-label={`Adjust attendance for ${subject.name}`}
                       >
                         <Sliders className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setRecordToReset(rec)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        className="touch-target p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center justify-center"
                         title="Reset to 0"
+                        aria-label={`Reset attendance for ${subject.name}`}
                       >
                         <RotateCcw className="w-4 h-4" />
                       </button>
@@ -218,7 +234,7 @@ const Attendance = () => {
                       >
                         {rec.percentage}%
                       </span>
-                      <span className="text-xs text-slate-400 ml-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
                         Target: {rec.targetPercentage}%
                       </span>
                     </div>
@@ -227,7 +243,7 @@ const Attendance = () => {
                       <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                         {rec.attendedClasses} / {rec.totalClasses}
                       </span>
-                      <p className="text-[11px] text-slate-400">Classes Attended</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Classes Attended</p>
                     </div>
                   </div>
 
@@ -277,7 +293,8 @@ const Attendance = () => {
                 <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                   <button
                     onClick={() => handleQuickLog(rec._id, 'present')}
-                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 active:scale-95"
+                    className="flex-1 min-h-[42px] py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 active:scale-95"
+                    aria-label={`Mark present (+1) for ${subject.name}`}
                   >
                     <Check className="w-4 h-4" />
                     <span>Present (+1)</span>
@@ -285,7 +302,8 @@ const Attendance = () => {
 
                   <button
                     onClick={() => handleQuickLog(rec._id, 'absent')}
-                    className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-rose-600/20 active:scale-95"
+                    className="flex-1 min-h-[42px] py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-rose-600/20 active:scale-95"
+                    aria-label={`Mark absent (+1) for ${subject.name}`}
                   >
                     <X className="w-4 h-4" />
                     <span>Absent (+1)</span>

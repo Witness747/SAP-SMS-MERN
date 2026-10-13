@@ -27,12 +27,14 @@ const Button = ({
       'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-500/20 focus:ring-rose-500',
     ghost:
       'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus:ring-slate-400',
+    white:
+      'bg-white hover:bg-indigo-50 text-indigo-900 dark:bg-white dark:hover:bg-indigo-50 dark:text-indigo-900 shadow-sm focus:ring-white font-semibold',
   };
 
   const sizes = {
-    sm: 'text-xs px-3 py-1.5 gap-1.5',
-    md: 'text-sm px-4 py-2.5 gap-2',
-    lg: 'text-base px-5 py-3 gap-2.5',
+    sm: 'text-xs px-3.5 py-2 min-h-[40px] gap-1.5',
+    md: 'text-sm px-4 py-2.5 min-h-[42px] gap-2',
+    lg: 'text-base px-5 py-3 min-h-[46px] gap-2.5',
   };
 
   return (

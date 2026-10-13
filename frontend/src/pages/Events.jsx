@@ -113,8 +113,8 @@ const Events = () => {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Academic Calendar & Exam Events
           </h1>
@@ -123,26 +123,29 @@ const Events = () => {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => {
-            setSelectedEvent(null);
-            setIsEventModalOpen(true);
-          }}
-          leftIcon={Plus}
-        >
-          Add Event
-        </Button>
+        <div className="flex-shrink-0">
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedEvent(null);
+              setIsEventModalOpen(true);
+            }}
+            leftIcon={Plus}
+            className="w-full sm:w-auto"
+          >
+            Add Event
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none sm:pb-0">
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => { setPage(1); setCategoryFilter(tab.id); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
                 categoryFilter === tab.id
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -153,7 +156,7 @@ const Events = () => {
           ))}
         </div>
 
-        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+        <label className="flex flex-shrink-0 items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
           <input
             type="checkbox"
             checked={upcomingOnly}
@@ -205,15 +208,17 @@ const Events = () => {
                           setSelectedEvent(event);
                           setIsEventModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        className="touch-target p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center"
                         title="Edit Event"
+                        aria-label={`Edit event "${event.title}"`}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setEventToDelete(event)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        className="touch-target p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center justify-center"
                         title="Delete Event"
+                        aria-label={`Delete event "${event.title}"`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

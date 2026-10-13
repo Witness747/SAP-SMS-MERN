@@ -83,9 +83,10 @@ const PwaPrompt = () => {
             </Button>
             <button
               onClick={handleDismiss}
+              aria-label="Dismiss install prompt"
               className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
-            >
-              <X className="w-4 h-4" />
+          >
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>

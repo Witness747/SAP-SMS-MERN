@@ -20,47 +20,51 @@ const Navbar = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/90 dark:border-slate-800 transition-colors">
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3">
+    <header className="glass sticky top-0 z-20 border-x-0 border-t-0 transition-colors">
+      <div className="flex min-h-[64px] items-center justify-between gap-2 px-3 py-2.5 sm:px-6">
         {/* Left: Mobile menu button & Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             onClick={onToggleMobileMenu}
-            className="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Toggle Navigation"
+            className="touch-target flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
+            aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
-              Student Academic Planner
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold leading-tight tracking-tight text-slate-900 dark:text-white sm:text-base truncate">
+              Academic Planner
             </h2>
-            <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400">
+            <p className="hidden pt-0.5 text-xs text-slate-500 dark:text-slate-400 sm:block truncate">
               Welcome back, <span className="font-medium text-slate-700 dark:text-slate-300">{user?.name || 'Student'}</span>
             </p>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2.5">
           {/* Notification Button */}
           <button
             onClick={subscribeToPush}
             disabled={isSubscribing}
             title={permission === 'granted' ? 'Notifications active' : 'Enable notifications'}
-            className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="relative touch-target flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label={permission === 'granted' ? 'Notifications are active' : 'Enable notifications'}
+            aria-pressed={permission === 'granted'}
           >
             <Bell className="w-5 h-5" />
             {permission === 'granted' && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500" />
             )}
           </button>
 
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Toggle theme"
+            className="touch-target flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
           >
             {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
           </button>
@@ -69,7 +73,9 @@ const Navbar = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
           <div className="relative">
             <button
               onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-2 p-1 pl-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+              className="touch-target flex min-h-[40px] items-center gap-1.5 rounded-xl p-1 transition-colors hover:bg-slate-100 focus-visible:outline-offset-2 dark:hover:bg-slate-800 sm:gap-2 sm:pl-2"
+              aria-label="Open account menu"
+              aria-expanded={showUserDropdown}
             >
               <span className="hidden sm:inline text-xs font-semibold text-slate-700 dark:text-slate-200">
                 {user?.name?.split(' ')[0]}
@@ -86,12 +92,12 @@ const Navbar = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
                   className="fixed inset-0 z-30"
                   onClick={() => setShowUserDropdown(false)}
                 />
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 z-40 animate-scale-up">
+                <div className="app-card absolute right-0 z-40 mt-2 w-56 rounded-2xl p-2 animate-scale-up">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
                     <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                       {user?.name}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {user?.email}
                     </p>
                   </div>

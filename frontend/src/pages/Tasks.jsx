@@ -139,10 +139,10 @@ const Tasks = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-7 min-w-0">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Academic Tasks & Assignments
           </h1>
@@ -151,16 +151,19 @@ const Tasks = () => {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => {
-            setSelectedTask(null);
-            setIsTaskModalOpen(true);
-          }}
-          leftIcon={Plus}
-        >
-          Create Task
-        </Button>
+        <div className="flex-shrink-0">
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedTask(null);
+              setIsTaskModalOpen(true);
+            }}
+            leftIcon={Plus}
+            className="w-full sm:w-auto"
+          >
+            Create Task
+          </Button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -271,8 +274,9 @@ const Tasks = () => {
                 <div className="flex items-start gap-3.5 min-w-0">
                   <button
                     onClick={() => handleToggleTask(task._id)}
-                    className="mt-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex-shrink-0"
+                    className="touch-target mt-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center flex-shrink-0"
                     title={isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
+                    aria-label={isCompleted ? `Mark "${task.title}" as incomplete` : `Mark "${task.title}" as completed`}
                   >
                     {isCompleted ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-500" />
@@ -301,7 +305,7 @@ const Tasks = () => {
                     <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
                       {task.subject && (
                         <span
-                          className="font-medium px-2 py-0.5 rounded-md text-[11px]"
+                          className="font-medium px-2 py-0.5 rounded-md text-xs"
                           style={{
                             backgroundColor: `${task.subject.color || '#3B82F6'}15`,
                             color: task.subject.color || '#3B82F6',
@@ -349,15 +353,17 @@ const Tasks = () => {
                         setSelectedTask(task);
                         setIsTaskModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="touch-target p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center"
                       title="Edit Task"
+                      aria-label={`Edit task "${task.title}"`}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setTaskToDelete(task)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      className="touch-target p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center justify-center"
                       title="Delete Task"
+                      aria-label={`Delete task "${task.title}"`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

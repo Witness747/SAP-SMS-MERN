@@ -32,21 +32,21 @@ const MainLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden text-slate-900 transition-colors dark:text-slate-100" style={{ background: 'var(--app-canvas)' }}>
       {/* Desktop Sidebar */}
       <Sidebar />
 
       {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Mobile Drawer */}
       <div
-        className={`md:hidden fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-slate-900 z-50 p-5 shadow-2xl transform transition-transform duration-200 ease-in-out border-r border-slate-200 dark:border-slate-800 flex flex-col ${
+        className={`app-card md:hidden fixed top-0 left-0 bottom-0 w-72 rounded-none border-y-0 border-l-0 z-50 p-5 shadow-2xl transform transition-transform duration-200 ease-in-out flex flex-col ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -59,7 +59,8 @@ const MainLayout = () => {
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(false)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            className="touch-target rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label="Close navigation menu"
           >
             <X className="w-5 h-5" />
           </button>
@@ -74,14 +75,14 @@ const MainLayout = () => {
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  `flex min-h-11 items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 font-semibold'
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 font-semibold border-l-4 border-indigo-600 pl-3 dark:border-indigo-500'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`
                 }
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                 <span>{item.name}</span>
               </NavLink>
             );
@@ -90,13 +91,13 @@ const MainLayout = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+      <div className="flex min-h-screen min-w-0 w-full flex-1 flex-col md:ml-64">
         <PwaPrompt />
         <Navbar
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}
         />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12">
+        <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 py-5 pb-24 sm:px-6 sm:py-7 md:px-8 md:pb-10 lg:px-10">
           <Outlet />
         </main>
         <BottomNav />

@@ -89,10 +89,10 @@ const Subjects = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-7 min-w-0">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Academic Subjects & Courses
           </h1>
@@ -101,21 +101,24 @@ const Subjects = () => {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => {
-            setSelectedSubject(null);
-            setIsSubjectModalOpen(true);
-          }}
-          leftIcon={Plus}
-        >
-          Add Subject
-        </Button>
+        <div className="flex-shrink-0">
+          <Button
+            size="sm"
+            onClick={() => {
+              setSelectedSubject(null);
+              setIsSubjectModalOpen(true);
+            }}
+            leftIcon={Plus}
+            className="w-full sm:w-auto"
+          >
+            Add Subject
+          </Button>
+        </div>
       </div>
 
       {/* Grid of Subjects */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 3 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
@@ -123,7 +126,7 @@ const Subjects = () => {
       ) : subjects.length === 0 ? (
         <EmptyState
           icon={BookOpen}
-          title="No subjects registered"
+          title="No subjects yet, add your first one"
           description="Add your semester courses to track attendance and weekly schedules."
           actionLabel="Add Subject"
           onAction={() => {
@@ -132,13 +135,13 @@ const Subjects = () => {
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {subjects.map((sub) => {
             const att = sub.attendance || { attendedClasses: 0, totalClasses: 0, percentage: 0 };
             const isTargetMet = att.percentage >= (sub.targetAttendance || 75);
 
             return (
-              <Card key={sub._id} className="flex flex-col justify-between overflow-hidden">
+              <Card key={sub._id} className="flex flex-col justify-between overflow-hidden h-full">
                 {/* Color Header Accent Stripe */}
                 <div
                   className="h-2 w-full"
@@ -163,15 +166,17 @@ const Subjects = () => {
                             setSelectedSubject(sub);
                             setIsSubjectModalOpen(true);
                           }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          className="touch-target p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center"
                           title="Edit Subject"
+                          aria-label={`Edit ${sub.name}`}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setSubjectToDelete(sub)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          className="touch-target p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center justify-center"
                           title="Delete Subject"
+                          aria-label={`Delete ${sub.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

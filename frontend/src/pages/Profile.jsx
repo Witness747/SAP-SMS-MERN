@@ -87,9 +87,9 @@ const Profile = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 sm:space-y-7 min-w-0">
       {/* Top Header */}
-      <div>
+      <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           Student Profile
         </h1>

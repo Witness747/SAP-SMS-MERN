@@ -4,12 +4,14 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('theme');
+    const saved = window.localStorage.getItem('theme');
     if (saved === 'dark' || saved === 'light') {
+      document.documentElement.classList.toggle('dark', saved === 'dark');
       return saved;
     }
-    // Default to system preference
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    const preferred = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', preferred === 'dark');
+    return preferred;
   });
 
   useEffect(() => {
@@ -19,7 +21,8 @@ export const ThemeProvider = ({ children }) => {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('theme', theme);
+    root.style.colorScheme = theme;
+    window.localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
