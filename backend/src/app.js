@@ -53,8 +53,8 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb', strict: true }));
+app.use(express.urlencoded({ extended: true, limit: '32kb', parameterLimit: 100 }));
 
 app.get('/api/health', async (req, res) => {
   const db = await getDatabaseStatus();
