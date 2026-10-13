@@ -42,3 +42,4 @@ desktop.ini
 .stylelintcache
 .cache/
 .vite/
+outputs/
